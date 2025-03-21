@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Financial Dashboard{% endblock %}</title>
+    <!-- Base CSS for all pages -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Plotly for charts -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Page-specific CSS -->
+    {% if request.path == url_for('home') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+    {% elif request.path == url_for('market_movers') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/market_movers.css') }}">
+    {% elif request.path == url_for('sectors') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/sectors.css') }}">
+    {% elif request.path == url_for('ww_eco') %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ww_eco.css') }}">
+    {% endif %}
+    <!-- Additional head content -->
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <header>
+        <h1>Financial Market Dashboard</h1>
+        <nav>
+            <a href="{{ url_for('home') }}" {% if request.path == url_for('home') %}class="active"{% endif %}>Home</a>
+            <a href="{{ url_for('market_movers') }}" {% if request.path == url_for('market_movers') %}class="active"{% endif %}>Market Movers</a>
+            <a href="{{ url_for('sectors') }}" {% if request.path == url_for('sectors') %}class="active"{% endif %}>Sectors</a>
+            <a href="{{ url_for('ww_eco') }}" {% if request.path == url_for('ww_eco') %}class="active"{% endif %}>Economic Indicators</a>
+        </nav>
+    </header>
+
+    <main>
+        {% block content %}
+        <!-- Default home page content -->
+        <section class="market-overview">
+            <h2>Market Overview</h2>
+            <div class="indices-grid">
+                {% for name, data in indices_data.items() %}
+                    <div class="index-card" onclick="openIndexChart('{{ name }}')">
+                        <h3>{{ name }}</h3>
+                        <p class="price">{{ data.price }}</p>
+                        <p class="change {% if data.pct_change > 0 %}positive{% elif data.pct_change < 0 %}negative{% endif %}">
+                            {{ data.point_change }} ({{ data.pct_change }}%)
+                            {% if data.pct_change > 0 %}▲{% elif data.pct_change < 0 %}▼{% endif %}
+                        </p>
+                        <div class="view-chart-btn">
+                            <span>View Chart</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Chart Modal for Index Charts -->
+        <div id="index-chart-modal" class="chart-modal">
+            <div class="chart-modal-content">
+                <div class="chart-modal-header">
+                    <h3 id="index-chart-modal-title">Index Chart</h3>
+                    <div class="chart-modal-controls">
+                        <button id="index-fullscreen-btn" class="control-btn" onclick="toggleIndexFullscreen()">
+                            <span class="fullscreen-icon">⛶</span> <span class="control-text">Fullscreen</span>
+                        </button>
+                        <button class="control-btn close-btn" onclick="closeIndexChart()">
+                            <span>✕</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="index-modal-chart-container" class="modal-chart-container">
+                    <!-- Chart will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <section class="market-news">
+            <h2>Financial News</h2>
+            <div class="news-grid">
+                {% for article in news_data %}
+                    <div class="news-card">
+                        <h3>
+                            <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">{{ article.title }}</a>
+                        </h3>
+                        <p class="source">{{ article.source }}</p>
+                        <p class="text">{{ article.text }}</p>
+                        <div class="sentiment {{ article.sentiment }}">
+                            {{ article.sentiment|capitalize }} ({{ article.compound_score }})
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endblock %}
+    </main>
+
+    <footer>
+        {% if last_updated is defined %}
+        <p>Data last updated: {{ last_updated }}</p>
+        {% endif %}
+        <p>Created by <a href="https://github.com/pritishmehta">Pritish Mehta</a></p>
+        {% block footer_extra %}{% endblock %}
+    </footer>
+
+    {% block scripts %}
+    <!-- Add base scripts here that should be on all pages -->
+    <script>
+    // Index chart modal functionality
+    let isIndexFullscreen = false;
+    const indexModal = document.getElementById('index-chart-modal');
+    const indexModalContainer = document.getElementById('index-modal-chart-container');
+    const indexModalTitle = document.getElementById('index-chart-modal-title');
+    const indexFullscreenBtn = document.getElementById('index-fullscreen-btn');
+
+    function openIndexChart(indexName) {
+        // Show loading indicator
+        indexModalContainer.innerHTML = '<div class="loading-spinner"></div>';
+        
+        // Update modal title
+        indexModalTitle.textContent = `${indexName} Performance`;
+        
+        // Show modal
+        indexModal.classList.add('show');
+        document.body.classList.add('modal-open');
+        
+        // Fetch chart data
+        const symbols = {
+            'S&P 500': '%5EGSPC',
+            'Dow Jones': '%5EDJI',
+            'NASDAQ': '%5EIXIC',
+            'Russell 2000': '%5ERUT',
+            'Nifty 50': '%5ENSEI',
+            'Sensex': '%5EBSESN'
+        };
+        
+        const symbol = symbols[indexName] || '';
+        if (!symbol) {
+            indexModalContainer.innerHTML = '<div class="error-message">Could not find symbol for this index.</div>';
+            return;
+        }
+        
+        // Fetch data (1y by default)
+        fetch(`/candlestick/${symbol}?period=1Y`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Clear container
+                indexModalContainer.innerHTML = '';
+                
+                // Create a new div for the chart
+                const chartDiv = document.createElement('div');
+                chartDiv.id = 'index-plotly-chart';
+                chartDiv.style.width = '100%';
+                chartDiv.style.height = '100%';
+                indexModalContainer.appendChild(chartDiv);
+                
+                // Create candlestick chart
+                const trace = {
+                    x: data.Date,
+                    open: data.Open,
+                    high: data.High,
+                    low: data.Low,
+                    close: data.Close,
+                    type: 'candlestick',
+                    increasing: {line: {color: '#10b981'}},
+                    decreasing: {line: {color: '#ef4444'}}
+                };
+                
+                const layout = {
+                    title: `${indexName} Performance`,
+                    xaxis: {
+                        title: 'Date',
+                        rangeslider: {visible: false},
+                        showgrid: false
+                    },
+                    yaxis: {
+                        title: 'Price',
+                        showgrid: true,
+                        gridcolor: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    paper_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    plot_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    margin: {l: 50, r: 50, t: 50, b: 50},
+                    autosize: true,
+                    dragmode: 'zoom',
+                    modebar: {
+                        orientation: 'v',
+                        bgcolor: 'rgba(30, 41, 59, 0.7)'
+                    },
+                    hoverlabel: {
+                        bgcolor: 'rgba(30, 41, 59, 0.8)',
+                        font: {color: 'white'}
+                    }
+                };
+                
+                Plotly.newPlot('index-plotly-chart', [trace], layout, {
+                    scrollZoom: true,
+                    displayModeBar: true,
+                    modeBarButtonsToAdd: ['drawline', 'drawopenpath', 'drawclosedpath', 'drawcircle', 'drawrect', 'eraseshape']
+                });
+                
+                // Make chart responsive
+                window.addEventListener('resize', function() {
+                    if (document.getElementById('index-plotly-chart')) {
+                        Plotly.relayout('index-plotly-chart', {autosize: true});
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching chart data:', error);
+                indexModalContainer.innerHTML = `<div class="error-message">Failed to load chart data: ${error.message}</div>`;
+            });
+    }
+
+    function closeIndexChart() {
+        indexModal.classList.remove('show');
+        document.body.classList.remove('modal-open');
+        if (isIndexFullscreen && document.exitFullscreen) {
+            document.exitFullscreen();
+            isIndexFullscreen = false;
+            updateIndexFullscreenButton();
+        }
+    }
+
+    function toggleIndexFullscreen() {
+        const modalContent = document.querySelector('#index-chart-modal .chart-modal-content');
+        
+        if (!isIndexFullscreen) {
+            if (modalContent.requestFullscreen) {
+                modalContent.requestFullscreen();
+            } else if (modalContent.webkitRequestFullscreen) {
+                modalContent.webkitRequestFullscreen();
+            } else if (modalContent.msRequestFullscreen) {
+                modalContent.msRequestFullscreen();
+            }
+            isIndexFullscreen = true;
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+                document.webkitExitFullscreen();
+            } else if (document.msExitFullscreen) {
+                document.msExitFullscreen();
+            }
+            isIndexFullscreen = false;
+        }
+        
+        updateIndexFullscreenButton();
+    }
+
+    function updateIndexFullscreenButton() {
+        const icon = indexFullscreenBtn.querySelector('.fullscreen-icon');
+        const text = indexFullscreenBtn.querySelector('.control-text');
+        
+        if (isIndexFullscreen) {
+            icon.textContent = '⛶';
+            text.textContent = 'Exit Fullscreen';
+        } else {
+            icon.textContent = '⛶';
+            text.textContent = 'Fullscreen';
+        }
+    }
+
+    // Close modal when clicking outside of it
+    window.addEventListener('click', function(event) {
+        if (event.target === indexModal) {
+            closeIndexChart();
+        }
+    });
+
+    // Handle fullscreen change events for index modal
+    document.addEventListener('fullscreenchange', function() {
+        isIndexFullscreen = !!document.fullscreenElement;
+        updateIndexFullscreenButton();
+    });
+    document.addEventListener('webkitfullscreenchange', function() {
+        isIndexFullscreen = !!document.webkitFullscreenElement;
+        updateIndexFullscreenButton();
+    });
+    document.addEventListener('msfullscreenchange', function() {
+        isIndexFullscreen = !!document.msFullscreenElement;
+        updateIndexFullscreenButton();
+    });
+
+    // Close modal with escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeIndexChart();
+        }
+    });
+    
+    </script>
+    {% endblock %}
+</body>
+</html>

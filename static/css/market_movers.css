@@ -1,0 +1,280 @@
+/* Enhanced styles for the Market Movers page */
+
+.market-movers-container {
+    display: flex;
+    flex-direction: column;
+    gap: 3rem;
+    animation: fadeIn 0.8s ease;
+  }
+  
+  .movers-section {
+    background-color: var(--bg-card, #212e42);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.3s ease;
+    animation: fadeSlideUp 0.6s ease forwards;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  
+  .movers-section:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  
+  .movers-section:hover {
+    box-shadow: 0 10px 15px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .movers-section h2 {
+    margin-top: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.75rem;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #f8fafc;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .movers-section h2::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 80px;
+    height: 3px;
+    background: linear-gradient(135deg, #0ea5e9, #3b82f6);
+    border-radius: 5px;
+  }
+  
+  /* Country-specific gradient colors */
+  .movers-section:nth-child(1) h2::after {
+    background: linear-gradient(135deg, #FF9933, #FFFFFF, #138808); /* India flag colors */
+  }
+  
+  .movers-section:nth-child(2) h2::after {
+    background: linear-gradient(135deg, #3C3B6E, #B22234, #FFFFFF); /* US flag colors */
+  }
+  
+  .movers-tables {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-top: 1.5rem;
+  }
+  
+  .movers-table {
+    flex: 1;
+    min-width: 300px;
+    animation: fadeIn 0.8s ease;
+  }
+  
+  .movers-table h3 {
+    margin-top: 0;
+    margin-bottom: 1.25rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .movers-table h3::before {
+    content: '';
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  
+  /* Gainers and losers indicators */
+  .movers-table:nth-child(1) h3::before {
+    background-color: #10b981; /* Green for gainers */
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+  }
+  
+  .movers-table:nth-child(2) h3::before {
+    background-color: #ef4444; /* Red for losers */
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  }
+  
+  /* Tables with fixed column widths */
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.9rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    table-layout: fixed; /* Fixed table layout for consistent column widths */
+  }
+  
+  /* Column width standardization - important for alignment */
+  table th:first-child,
+  table td:first-child {
+    width: 70%; /* Company name/symbol column takes 70% */
+  }
+  
+  table th:last-child,
+  table td:last-child {
+    width: 30%; /* Change column takes 30% */
+    text-align: right;
+  }
+  
+  th, td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; /* Prevent wrapping inside cells */
+  }
+  
+  /* Specific styling for change percentage cells */
+  td.change-percent, th.change-percent {
+    text-align: right;
+    white-space: nowrap;
+  }
+  
+  /* Ensure the % symbol stays with the number */
+  .change-percent span {
+    white-space: nowrap;
+    display: inline-block;
+  }
+  
+  th {
+    background-color: rgba(0, 0, 0, 0.2);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: #cbd5e1;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  
+  th:first-child {
+    border-top-left-radius: 0.5rem;
+  }
+  
+  th:last-child {
+    border-top-right-radius: 0.5rem;
+  }
+  
+  tbody tr {
+    transition: all 0.2s ease;
+  }
+  
+  tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+  }
+  
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  tbody tr:last-child td:first-child {
+    border-bottom-left-radius: 0.5rem;
+  }
+  
+  tbody tr:last-child td:last-child {
+    border-bottom-right-radius: 0.5rem;
+  }
+  
+  .alt-row {
+    background-color: rgba(255, 255, 255, 0.02);
+  }
+  
+  .no-data {
+    color: #94a3b8;
+    font-style: italic;
+    padding: 2rem;
+    text-align: center;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 0.5rem;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Highlight positive and negative values */
+  td.positive, .positive {
+    color: #10b981;
+  }
+  
+  td.negative, .negative {
+    color: #ef4444;
+  }
+  
+  /* Animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes fadeSlideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Responsive styles */
+  @media (max-width: 768px) {
+    .movers-tables {
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    
+    .movers-table {
+      min-width: 100%;
+    }
+    
+    .movers-section {
+      padding: 1.5rem;
+    }
+    
+    table {
+      font-size: 0.8rem;
+      display: block;
+      overflow-x: auto; /* Enable horizontal scrolling on small screens */
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    th, td {
+      padding: 0.75rem 0.5rem;
+    }
+    
+    th {
+      font-size: 0.7rem;
+    }
+  }
+  
+  /* Add pulsing animation for new data */
+  .new-data {
+    animation: pulse-highlight 2s ease;
+  }
+  
+  @keyframes pulse-highlight {
+    0% {
+      background-color: rgba(59, 130, 246, 0.2);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }

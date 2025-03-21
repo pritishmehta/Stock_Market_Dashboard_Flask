@@ -1,0 +1,325 @@
+{% extends "index.html" %}
+
+{% block title %}Economic Indicators{% endblock %}
+
+{% block head_extra %}
+<style>
+/* Add any urgent inline styles for economic indicators page here */
+.economic-indicators {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+    gap: 2rem;
+    margin-top: 1rem;
+}
+
+.indicator-card {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.indicator-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+}
+
+.chart-container {
+    height: 400px;
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .economic-indicators {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="economic-indicators-section">
+    <h2>US Economic Data</h2>
+    
+    <div class="economic-indicators">
+        <div class="indicator-card">
+            <h3>GDP Growth</h3>
+            <div id="gdp-chart" class="chart-container"></div>
+            <script>
+                var gdpData = {
+                    x: [{% for date in gdp_data.index %}
+                        "{{ date.strftime('%Y-%m-%d') }}"{% if not loop.last %},{% endif %}
+                        {% endfor %}],
+                    y: [{% for value in gdp_data['GDP'] %}
+                        {{ value }}{% if not loop.last %},{% endif %}
+                        {% endfor %}],
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: '#10b981',
+                        width: 2
+                    },
+                    name: 'US GDP'
+                };
+
+                var layout = {
+                    title: 'US GDP Over Time',
+                    xaxis: {
+                        title: 'Date',
+                        showgrid: false
+                    },
+                    yaxis: {
+                        title: 'GDP (Billions of Dollars)',
+                        showgrid: true,
+                        gridcolor: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    paper_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    plot_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    margin: { t: 50, r: 20, l: 60, b: 50 }
+                };
+
+                Plotly.newPlot('gdp-chart', [gdpData], layout);
+            </script>
+        </div>
+
+        <div class="indicator-card">
+            <h3>Unemployment Rate</h3>
+            <div id="unemployment-chart" class="chart-container"></div>
+            <script>
+                var unemploymentData = {
+                    x: [{% for date in unemployment_data.index %}
+                        "{{ date.strftime('%Y-%m-%d') }}"{% if not loop.last %},{% endif %}
+                        {% endfor %}],
+                    y: [{% for value in unemployment_data['UNRATE'] %}
+                        {{ value }}{% if not loop.last %},{% endif %}
+                        {% endfor %}],
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: '#ef4444',
+                        width: 2
+                    },
+                    name: 'Unemployment Rate'
+                };
+
+                var layout = {
+                    title: 'US Unemployment Rate',
+                    xaxis: {
+                        title: 'Date',
+                        showgrid: false
+                    },
+                    yaxis: {
+                        title: 'Unemployment Rate (%)',
+                        showgrid: true,
+                        gridcolor: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    paper_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    plot_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    margin: { t: 50, r: 20, l: 60, b: 50 }
+                };
+
+                Plotly.newPlot('unemployment-chart', [unemploymentData], layout);
+            </script>
+        </div>
+
+        <!-- Replace the existing inflation chart code in ww_eco.html with this: -->
+        <div class="indicator-card">
+            <h3>Inflation Expectations</h3>
+            <div id="inflation-chart" class="chart-container">
+                <div class="chart-loading" id="inflation-loading"></div>
+            </div>
+            <script>
+                // Execute immediately without waiting for DOMContentLoaded
+                (function() {
+                    try {
+                        {% if inflation_data is defined and inflation_data.index|length > 0 %}
+                        // Data is available, create the chart
+                        var inflationData = {
+                            x: [{% for date in inflation_data.index %}
+                                "{{ date.strftime('%Y-%m-%d') }}"{% if not loop.last %},{% endif %}
+                                {% endfor %}],
+                            y: [{% for value in inflation_data['T5YIE'] %}
+                                {% if value is none or value is string or value != value %}null{% else %}{{ value|float }}{% endif %}{% if not loop.last %},{% endif %}
+                                {% endfor %}],
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            line: {
+                                color: '#f59e0b',
+                                width: 2
+                            },
+                            marker: {
+                                size: 4,
+                                color: '#f59e0b'
+                            },
+                            connectgaps: true,
+                            name: '5-Year Inflation Expectations'
+                        };
+
+                        var layout = {
+                            title: '5-Year Inflation Expectations',
+                            xaxis: { 
+                                title: 'Date',
+                                showgrid: false,
+                                tickfont: { color: '#cbd5e1' },
+                                titlefont: { color: '#f8fafc' }
+                            },
+                            yaxis: { 
+                                title: 'Expected Inflation Rate (%)',
+                                showgrid: true,
+                                gridcolor: 'rgba(255, 255, 255, 0.1)',
+                                tickfont: { color: '#cbd5e1' },
+                                titlefont: { color: '#f8fafc' }
+                            },
+                            paper_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                            plot_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                            margin: { t: 50, r: 20, l: 60, b: 50 },
+                            font: { color: '#f8fafc' },
+                            showlegend: false
+                        };
+
+                        var config = {
+                            responsive: true,
+                            displayModeBar: false
+                        };
+
+                        // Render chart and explicitly remove the loading indicator
+                        Plotly.newPlot('inflation-chart', [inflationData], layout, config)
+                            .then(function() {
+                                // Hide loading spinner on success
+                                var loader = document.getElementById('inflation-loading');
+                                if (loader) {
+                                    loader.classList.add('loaded');
+                                }
+                            })
+                            .catch(function(error) {
+                                // Log error and hide loading spinner
+                                console.error("Error plotting inflation chart:", error);
+                                var loader = document.getElementById('inflation-loading');
+                                if (loader) {
+                                    loader.classList.add('loaded');
+                                }
+                                document.getElementById('inflation-chart').innerHTML = 
+                                    '<div class="chart-error">Error rendering inflation chart. Please try again later.</div>';
+                            });
+                        {% else %}
+                        // No data available
+                        document.getElementById('inflation-chart').innerHTML = 
+                            '<div class="chart-error">Inflation data is currently unavailable. Please check back later.</div>';
+                        var loader = document.getElementById('inflation-loading');
+                        if (loader) {
+                            loader.classList.add('loaded');
+                        }
+                        {% endif %}
+                    } catch (error) {
+                        console.error("Critical error in inflation chart code:", error);
+                        document.getElementById('inflation-chart').innerHTML = 
+                            '<div class="chart-error">Unable to display inflation data. Please try again later.</div>';
+                        var loader = document.getElementById('inflation-loading');
+                        if (loader) {
+                            loader.classList.add('loaded');
+                        }
+                    }
+                })(); // Execute immediately
+                </script>
+        </div>
+
+        <div class="indicator-card">
+            <h3>Real Interest Rate</h3>
+            <div id="interest-chart" class="chart-container"></div>
+            <script>
+                var interestData = {
+                    x: [{% for date in interest_data.index %}
+                        "{{ date.strftime('%Y-%m-%d') }}"{% if not loop.last %},{% endif %}
+                        {% endfor %}],
+                    y: [{% for value in interest_data['REAINTRATREARAT10Y'] %}
+                        {{ value }}{% if not loop.last %},{% endif %}
+                        {% endfor %}],
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: {
+                        color: '#3b82f6',
+                        width: 2
+                    },
+                    name: 'Real Interest Rate'
+                };
+
+                var layout = {
+                    title: '10-Year Real Interest Rate',
+                    xaxis: {
+                        title: 'Date',
+                        showgrid: false
+                    },
+                    yaxis: {
+                        title: 'Rate (%)',
+                        showgrid: true,
+                        gridcolor: 'rgba(255, 255, 255, 0.1)'
+                    },
+                    paper_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    plot_bgcolor: 'rgba(30, 41, 59, 0.0)',
+                    margin: { t: 50, r: 20, l: 60, b: 50 }
+                };
+
+                Plotly.newPlot('interest-chart', [interestData], layout);
+            </script>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Add any economic indicators specific JavaScript here
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle window resize events for charts
+    window.addEventListener('resize', function() {
+        const charts = ['gdp-chart', 'unemployment-chart', 'inflation-chart', 'interest-chart'];
+        charts.forEach(function(chartId) {
+            Plotly.relayout(chartId, {
+                'autosize': true
+            });
+        });
+    });
+
+    // Add annotations or highlights for important economic events if needed
+    // Example: Add recession shading
+    /* 
+    const recessions = [
+        {start: '2007-12-01', end: '2009-06-30', name: 'Great Recession'},
+        {start: '2020-02-01', end: '2020-04-30', name: 'COVID-19 Recession'}
+    ];
+    
+    charts.forEach(function(chartId) {
+        recessions.forEach(function(recession) {
+            const shape = {
+                type: 'rect',
+                xref: 'x',
+                yref: 'paper',
+                x0: recession.start,
+                x1: recession.end,
+                y0: 0,
+                y1: 1,
+                fillcolor: 'rgba(200, 0, 0, 0.1)',
+                line: {
+                    width: 0
+                }
+            };
+            
+            Plotly.relayout(chartId, {
+                shapes: [shape]
+            });
+        });
+    });
+    */
+});
+
+</script>
+{% endblock %}
+
+{% block footer_extra %}
+<p>Economic data sourced from Federal Reserve Economic Data (FRED)</p>
+{% endblock %}

@@ -1,0 +1,220 @@
+{% extends "index.html" %}
+
+{% block title %}Sector Performance{% endblock %}
+
+{% block content %}
+<section class="period-selection">
+    <form action="{{ url_for('update_sector_period') }}" method="POST">
+        <label for="period">Select Period:</label>
+        <select name="period" id="period" onchange="this.form.submit()">
+            <option value="1m" {% if period == '1m' %}selected{% endif %}>1 Month</option>
+            <option value="3m" {% if period == '3m' %}selected{% endif %}>3 Months</option>
+            <option value="6m" {% if period == '6m' %}selected{% endif %}>6 Months</option>
+            <option value="1y" {% if period == '1y' %}selected{% endif %}>1 Year</option>
+            <option value="2y" {% if period == '2y' %}selected{% endif %}>2 Years</option>
+            <option value="5y" {% if period == '5y' %}selected{% endif %}>5 Years</option>
+        </select>
+    </form>
+</section>
+
+{% if error_message %}
+    <div class="error-message">
+        <p>{{ error_message }}</p>
+    </div>
+{% else %}
+    <!-- Check if sector_returns dictionary exists and is not empty -->
+    {% if sector_returns and sector_returns|length > 0 %}
+        <section class="sector-performance">
+            <h2>Sector Performance - {{ period }}</h2>
+            <div class="sector-grid">
+                {% for sector, data in sector_returns.items() %}
+                    <div class="sector-card {% if data.is_positive %}positive{% else %}negative{% endif %}" onclick="openSectorChart('{{ sector }}')">
+                        <h3>{{ data.name }} ({{ data.etf }})</h3>
+                        <p class="price">{{ data.last_close }}</p>
+                        <p class="change {% if data.is_positive %}positive{% else %}negative{% endif %}">
+                            {{ data.pct_change }}% 
+                            {% if data.is_positive %}▲{% else %}▼{% endif %}
+                        </p>
+                        <div class="view-chart-btn">
+                            <span>View Chart</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Hidden containers for charts that will be shown in modal -->
+        <div id="chart-modal" class="chart-modal">
+            <div class="chart-modal-content">
+                <div class="chart-modal-header">
+                    <h3 id="chart-modal-title">Sector Chart</h3>
+                    <div class="chart-modal-controls">
+                        <button id="fullscreen-btn" class="control-btn" onclick="toggleFullscreen()">
+                            <span class="fullscreen-icon">⛶</span> <span class="control-text">Fullscreen</span>
+                        </button>
+                        <button class="control-btn close-btn" onclick="closeSectorChart()">
+                            <span>✕</span>
+                        </button>
+                    </div>
+                </div>
+                <div id="modal-chart-container" class="modal-chart-container">
+                    <!-- Chart will be rendered here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Store chart data in hidden divs -->
+        {% for sector, chart_json in sector_charts.items() %}
+            <div id="chart-data-{{ sector }}" class="chart-data" style="display: none;" 
+                 data-sector="{{ sector }}" data-chart='{{ chart_json|safe }}'></div>
+        {% endfor %}
+
+        {% if correlation_chart %}
+            <section class="correlation-matrix">
+                <h2>Sector Correlations</h2>
+                <div class="correlation-container" id="correlation-chart">
+                    <script>
+                        var corrData = {{ correlation_chart|safe }};
+                        Plotly.newPlot('correlation-chart', corrData.data, corrData.layout);
+                    </script>
+                </div>
+            </section>
+        {% endif %}
+    {% else %}
+        <section class="no-data">
+            <h2>No sector data available</h2>
+            <p>Unable to load sector performance data. Please try again later.</p>
+        </section>
+    {% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Add sector chart modal functionality
+let isFullscreen = false;
+const modal = document.getElementById('chart-modal');
+const modalContainer = document.getElementById('modal-chart-container');
+const modalTitle = document.getElementById('chart-modal-title');
+const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+function openSectorChart(sector) {
+    // Get chart data from hidden div
+    const chartDataDiv = document.getElementById(`chart-data-${sector}`);
+    if (!chartDataDiv) return;
+    
+    const sectorName = chartDataDiv.getAttribute('data-sector');
+    const chartData = JSON.parse(chartDataDiv.getAttribute('data-chart'));
+    
+    // Update modal title
+    modalTitle.textContent = `${sectorName} Sector Performance`;
+    
+    // Clear previous chart
+    modalContainer.innerHTML = '';
+    
+    // Create a new div for the chart
+    const chartDiv = document.createElement('div');
+    chartDiv.id = 'modal-plotly-chart';
+    chartDiv.style.width = '100%';
+    chartDiv.style.height = '100%';
+    modalContainer.appendChild(chartDiv);
+    
+    // Show modal
+    modal.classList.add('show');
+    document.body.classList.add('modal-open');
+    
+    // Create chart with updated layout for modal display
+    const newLayout = {
+        ...chartData.layout,
+        height: null, // Let Plotly determine the height
+        autosize: true,
+        margin: { l: 50, r: 50, t: 50, b: 50 }
+    };
+    
+    // Render chart
+    Plotly.newPlot('modal-plotly-chart', chartData.data, newLayout);
+    
+    // Make chart responsive
+    window.addEventListener('resize', function() {
+        Plotly.relayout('modal-plotly-chart', { autosize: true });
+    });
+}
+
+function closeSectorChart() {
+    modal.classList.remove('show');
+    document.body.classList.remove('modal-open');
+    if (isFullscreen && document.exitFullscreen) {
+        document.exitFullscreen();
+        isFullscreen = false;
+        updateFullscreenButton();
+    }
+}
+
+function toggleFullscreen() {
+    const modalContent = document.querySelector('.chart-modal-content');
+    
+    if (!isFullscreen) {
+        if (modalContent.requestFullscreen) {
+            modalContent.requestFullscreen();
+        } else if (modalContent.webkitRequestFullscreen) {
+            modalContent.webkitRequestFullscreen();
+        } else if (modalContent.msRequestFullscreen) {
+            modalContent.msRequestFullscreen();
+        }
+        isFullscreen = true;
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+        isFullscreen = false;
+    }
+    
+    updateFullscreenButton();
+}
+
+function updateFullscreenButton() {
+    const icon = fullscreenBtn.querySelector('.fullscreen-icon');
+    const text = fullscreenBtn.querySelector('.control-text');
+    
+    if (isFullscreen) {
+        icon.textContent = '⛶';
+        text.textContent = 'Exit Fullscreen';
+    } else {
+        icon.textContent = '⛶';
+        text.textContent = 'Fullscreen';
+    }
+}
+
+// Close modal when clicking outside of it
+window.addEventListener('click', function(event) {
+    if (event.target === modal) {
+        closeSectorChart();
+    }
+});
+
+// Handle fullscreen change events
+document.addEventListener('fullscreenchange', function() {
+    isFullscreen = !!document.fullscreenElement;
+    updateFullscreenButton();
+});
+document.addEventListener('webkitfullscreenchange', function() {
+    isFullscreen = !!document.webkitFullscreenElement;
+    updateFullscreenButton();
+});
+document.addEventListener('msfullscreenchange', function() {
+    isFullscreen = !!document.msFullscreenElement;
+    updateFullscreenButton();
+});
+
+// Close modal with escape key
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeSectorChart();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "index.html" %}
+
+{% block title %}Market Movers{% endblock %}
+
+{% block head_extra %}
+<style>
+/* Any critical inline styles can go here if needed */
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="market-movers-container">
+    <div class="movers-section">
+        <h2>Indian Market Movers</h2>
+        
+        <div class="movers-tables">
+            <div class="movers-table">
+                <h3>Top Gainers</h3>
+                {% if indian_gainers.empty %}
+                    <p class="no-data">No data available for Indian gainers</p>
+                {% else %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>COMPANY NAME</th>
+                                <th class="change-percent">CHANGE (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in indian_gainers.iterrows() %}
+                                <tr class="{% if loop.index0 % 2 == 1 %}alt-row{% endif %}">
+                                    <td>{{ row.iloc[0] }}</td>
+                                    <td class="change-percent positive">{{ row.iloc[1] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+            
+            <div class="movers-table">
+                <h3>Top Losers</h3>
+                {% if indian_losers.empty %}
+                    <p class="no-data">No data available for Indian losers</p>
+                {% else %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>COMPANY NAME</th>
+                                <th class="change-percent">CHANGE (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in indian_losers.iterrows() %}
+                                <tr class="{% if loop.index0 % 2 == 1 %}alt-row{% endif %}">
+                                    <td>{{ row.iloc[0] }}</td>
+                                    <td class="change-percent negative">{{ row.iloc[1] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="movers-section">
+        <h2>US Market Movers</h2>
+        
+        <div class="movers-tables">
+            <div class="movers-table">
+                <h3>Top Gainers</h3>
+                {% if us_gainers.empty %}
+                    <p class="no-data">No data available for US gainers</p>
+                {% else %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SYMBOL</th>
+                                <th class="change-percent">CHANGE %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in us_gainers.iterrows() %}
+                                <tr class="{% if loop.index0 % 2 == 1 %}alt-row{% endif %}">
+                                    <td>{{ row.iloc[0] }}</td>
+                                    <td class="change-percent positive">{{ row.iloc[1] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+            
+            <div class="movers-table">
+                <h3>Top Losers</h3>
+                {% if us_losers.empty %}
+                    <p class="no-data">No data available for US losers</p>
+                {% else %}
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>SYMBOL</th>
+                                <th class="change-percent">CHANGE %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for _, row in us_losers.iterrows() %}
+                                <tr class="{% if loop.index0 % 2 == 1 %}alt-row{% endif %}">
+                                    <td>{{ row.iloc[0] }}</td>
+                                    <td class="change-percent negative">{{ row.iloc[1] }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Add any market movers specific JavaScript here
+document.addEventListener('DOMContentLoaded', function() {
+    // Example: Add alternating row colors to tables (already handled in template)
+    // Add table row hover effects
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+        });
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = this.classList.contains('alt-row') ? 
+                'rgba(255, 255, 255, 0.02)' : '';
+        });
+    });
+});
+</script>
+{% endblock %}
