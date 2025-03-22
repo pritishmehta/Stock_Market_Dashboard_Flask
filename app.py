@@ -166,7 +166,7 @@ def home():
             print(f"Error fetching {name} data: {e}")
     
     # Get news articles from Alpha Vantage
-    articles = get_alpha_vantage_news(API_KEY, limit=5)
+    articles = get_stock_market_news()
 
     print(f"Retrieved {len(articles)} articles from Alpha Vantage")
     formatted_news = process_news(articles)
