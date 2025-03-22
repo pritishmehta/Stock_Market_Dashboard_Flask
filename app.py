@@ -14,6 +14,7 @@ import json
 from flask import redirect, url_for
 import pandas_datareader as pdr
 app = Flask(__name__)
+import time
 
 # Replace with your actual Alpha Vantage API key
 API_KEY = '5DHU06PG79LY13BA'
@@ -22,115 +23,105 @@ API_KEY = '5DHU06PG79LY13BA'
 analyzer = SentimentIntensityAnalyzer()
 
 # Improved function to fetch news from Alpha Vantage with better error handling
-def get_alpha_vantage_news(api_key, limit=10, max_retries=3, retry_delay=1):
+analyzer = SentimentIntensityAnalyzer()  # Initialize VADER sentiment analyzer
+
+def get_stock_market_news(ticker="^GSPC", limit=10, max_retries=3, retry_delay=1):
     """
-    Fetch news from Alpha Vantage API with retry mechanism
+    Fetch news related to stock market using yfinance with retry mechanism
     
     Parameters:
-    api_key (str): Alpha Vantage API key
+    ticker (str): Stock ticker symbol (default: ^GSPC for S&P 500)
     limit (int): Maximum number of news articles to return
     max_retries (int): Maximum number of retry attempts
     retry_delay (int): Delay between retries in seconds
     
     Returns:
-    list: List of news articles or empty list if failed
+    list: List of news articles or fallback data if failed
     """
-    url = f'https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics=financial_markets&apikey={api_key}&limit={limit}'
-    
     retry_count = 0
     while retry_count < max_retries:
         try:
-            response = requests.get(url, timeout=10)  # Add timeout
+            # Create yfinance Ticker object
+            market = yf.Ticker(ticker)
             
-            if response.status_code == 200:
-                data = response.json()
-                if 'feed' in data:
-                    return data['feed'][:limit]
-                elif 'Note' in data:
-                    # API limit reached
-                    print(f"Alpha Vantage API limit reached: {data['Note']}")
-                    # Return fallback mock data if API limit is reached
-                    return get_fallback_news_data(limit)
-                else:
-                    print(f"Unexpected Alpha Vantage API response: {data}")
-                    return []
+            # Get news items
+            news_items = market.news
+            
+            if news_items:
+                # Return limited number of articles
+                return news_items[:min(limit, len(news_items))]
             else:
-                print(f"Alpha Vantage API error: {response.status_code}")
+                print(f"No news items returned for ticker {ticker}")
                 
             # Increment retry count and wait before next attempt
             retry_count += 1
             if retry_count < max_retries:
-                import time
                 time.sleep(retry_delay)
+                
         except Exception as e:
-            print(f"Error fetching news from Alpha Vantage: {e}")
+            print(f"Error fetching news from yfinance: {e}")
             retry_count += 1
             if retry_count < max_retries:
-                import time
                 time.sleep(retry_delay)
     
     # Return fallback data if all retries failed
     return get_fallback_news_data(limit)
 
-# Fallback function to provide mock news data when API fails
 def get_fallback_news_data(limit=5):
     """Generate fallback news data when API fails"""
     fallback_news = [
         {
             'title': 'Markets React to Recent Economic Data',
-            'source': 'Market News Daily',
-            'url': '#',
-            'summary': 'Global markets showed mixed reactions to the latest economic indicators, with technology stocks leading gains.',
-            'time_published': datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+            'publisher': 'Market News Daily',
+            'link': '#',
+            'summary': 'Global markets showed mixed reactions to the latest economic indicators.',
+            'providerPublishTime': int(datetime.datetime.now().timestamp())
         },
         {
             'title': 'Federal Reserve Holds Interest Rates Steady',
-            'source': 'Financial Times',
-            'url': '#',
-            'summary': 'The Federal Reserve announced its decision to maintain current interest rates, citing stable inflation and economic growth.',
-            'time_published': datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+            'publisher': 'Financial Times',
+            'link': '#',
+            'summary': 'The Fed maintained current interest rates, citing stable inflation.',
+            'providerPublishTime': int(datetime.datetime.now().timestamp())
         },
         {
             'title': 'Tech Sector Shows Strong Q1 Performance',
-            'source': 'Tech Insider',
-            'url': '#',
-            'summary': 'Technology companies reported better-than-expected earnings for the first quarter, boosting investor confidence.',
-            'time_published': datetime.datetime.now().strftime("%Y%m%dT%H%M%S")
+            'publisher': 'Tech Insider',
+            'link': '#',
+            'summary': 'Tech companies reported better-than-expected Q1 earnings.',
+            'providerPublishTime': int(datetime.datetime.now().timestamp())
         }
     ]
-    
-    # Return only requested number of articles
     return fallback_news[:limit]
-# Process news and add sentiment
+
 def process_news(articles):
+    """Process news articles and add sentiment analysis"""
     news_data = []
     for article in articles:
         title = article.get('title', 'No Title')
-        source = article.get('source', 'Unknown Source')
-        url = article.get('url', '#')  # Default to '#' if URL is missing
+        source = article.get('publisher', 'Unknown Source')
+        url = article.get('link', '#')
         summary = article.get('summary', '')
-        published = article.get('time_published', 'Unknown Date')
+        published = datetime.datetime.fromtimestamp(
+            article.get('providerPublishTime', 0)
+        ).strftime('%Y%m%dT%H%M%S')
         
-        # Truncate text for display
+        # Truncate summary text
         text = summary[:150] + "..." if summary and len(summary) > 150 else summary
         
         # Sentiment analysis using VADER
         sentiment_scores = analyzer.polarity_scores(title)
         compound_score = sentiment_scores['compound']
         
-        if compound_score >= 0.05:
-            sentiment = 'positive'
-        elif compound_score <= -0.05:
-            sentiment = 'negative'
-        else:
-            sentiment = 'neutral'
+        sentiment = 'positive' if compound_score >= 0.05 else \
+                   'negative' if compound_score <= -0.05 else 'neutral'
         
         news_data.append({
             'title': title,
             'source': source,
             'sentiment': sentiment,
             'compound_score': round(compound_score, 3),
-            'url': url,  # Include the URL for linking
+            'url': url,
             'text': text,
             'published': published
         })
