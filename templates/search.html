@@ -422,12 +422,19 @@
                     
                     <div class="search-news">
                         <h2>Recent News</h2>
+                        
+                        <!-- Add a debug display to help troubleshoot -->
+                        <div class="debug-info" id="news-debug" style="display: none;">
+                            News data available: {{ news is defined and news is not none }}
+                            News count: {{ news|length if news is defined and news is not none else 0 }}
+                        </div>
+                        
                         <div class="news-grid">
-                            {% if news is defined and news and news|length > 0 %}
+                            {% if news is defined and news is not none and news|length > 0 %}
                                 {% for article in news %}
                                     <div class="news-card">
                                         <h3>
-                                            {% if article.url %}
+                                            {% if article.url and article.url != '#' %}
                                                 <a href="{{ article.url }}" target="_blank" rel="noopener noreferrer">
                                                     {{ article.title|default('Untitled Article') }}
                                                 </a>
@@ -435,13 +442,20 @@
                                                 {{ article.title|default('Untitled Article') }}
                                             {% endif %}
                                         </h3>
-                                        <p class="source">{{ article.source|default('Unknown Source') }}</p>
-                                        {% if article.text %}
+                                        <div class="source">
+                                            <span>{{ article.source|default('Unknown Source') }}</span>
+                                            {% if article.published %}
+                                                <span class="published">{{ article.published }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if article.text and article.text|length > 0 %}
                                             <p class="text">{{ article.text }}</p>
                                         {% endif %}
                                         <div class="sentiment {{ article.sentiment|default('neutral') }}">
                                             {{ article.sentiment|default('neutral')|capitalize }} 
-                                            ({{ article.compound_score|default(0) }})
+                                            {% if article.compound_score is defined %}
+                                                ({{ '%.2f'|format(article.compound_score) }})
+                                            {% endif %}
                                         </div>
                                     </div>
                                 {% endfor %}
@@ -709,5 +723,37 @@
             });
         });
     });
+
+    function debugNewsDisplay() {
+    console.group('News Debug');
+    
+    // Check if news data exists
+    const newsData = {{ news|tojson|safe if news is defined and news is not none else '[]' }};
+    console.log('News data array exists:', Array.isArray(newsData));
+    console.log('News items count:', newsData.length);
+    
+    if (newsData.length > 0) {
+        console.log('First news item:', newsData[0]);
+    }
+    
+    // Check DOM elements
+    const newsGrid = document.querySelector('.news-grid');
+    console.log('News grid element exists:', !!newsGrid);
+    
+    const newsCards = document.querySelectorAll('.news-card');
+    console.log('News cards found:', newsCards.length);
+    
+    // Display debug info on page (hidden by default)
+    const debugInfo = document.getElementById('news-debug');
+    if (debugInfo) {
+        debugInfo.textContent = `News data available: ${Array.isArray(newsData)}\nNews count: ${newsData.length}\nFirst item title: ${newsData.length > 0 ? newsData[0].title : 'none'}`;
+    }
+    
+    console.groupEnd();
+}
+
+// Call the debug function
+document.addEventListener('DOMContentLoaded', function() {
+    debugNewsDisplay();
 </script>
 {% endblock %}

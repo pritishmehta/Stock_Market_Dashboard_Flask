@@ -166,7 +166,6 @@ def get_stock_news_for_ticker(ticker, limit=5):
         # If no news found via yfinance, try Alpha Vantage
         if not news_items or len(news_items) == 0:
             print(f"No news found via yfinance for {ticker}, trying Alpha Vantage...")
-            # Try Alpha Vantage as fallback
             try:
                 tickers_param = ticker
                 news_items = get_alpha_vantage_news(API_KEY, tickers=tickers_param, limit=limit)
@@ -175,31 +174,81 @@ def get_stock_news_for_ticker(ticker, limit=5):
                 print(f"Error getting Alpha Vantage news for {ticker}: {e}")
                 news_items = []
         
-        # If still no news, use fallback data
-        if not news_items or len(news_items) == 0:
-            print(f"No news found for {ticker}, using fallback data...")
-            news_items = get_fallback_news_data(limit)
-            # Customize fallback data for this ticker
-            for item in news_items:
-                item['title'] = item['title'].replace('Markets', f"{ticker} Stock")
-                
         # Process news with proper error handling
         processed_news = []
-        for article in news_items[:limit]:
+        for i, article in enumerate(news_items[:limit]):
             try:
-                # Extract basic article information with fallbacks
-                title = article.get('title', 'No Title')
-                if not title or title == 'No Title':
-                    # Skip articles without titles
-                    continue
-                    
-                source = article.get('publisher', article.get('source', 'Financial News'))
-                url = article.get('link', article.get('url', '#'))
-                summary = article.get('summary', '')
+                print(f"Processing article {i+1}/{min(limit, len(news_items))}")
                 
-                # Use current timestamp if providerPublishTime is missing
-                publish_time = article.get('providerPublishTime', int(time.time()))
-                published = datetime.datetime.fromtimestamp(publish_time).strftime('%Y-%m-%d %H:%M')
+                # Handle the nested content structure in yfinance response
+                content = article
+                
+                # Check if this is a nested structure with a 'content' field
+                if 'content' in article and isinstance(article['content'], dict):
+                    content = article['content']
+                    print(f"Found nested content structure in article {i+1}")
+                
+                # Extract title from content
+                title = None
+                if 'title' in content:
+                    title = content['title']
+                
+                if not title and 'Title' in content:
+                    title = content['Title']
+                    
+                # If still no title, print the keys to help debug
+                if not title:
+                    print(f"Could not find title. Available keys: {content.keys()}")
+                    continue
+                
+                # Extract other fields
+                source = None
+                if 'provider' in content and isinstance(content['provider'], dict) and 'displayName' in content['provider']:
+                    source = content['provider']['displayName']
+                elif 'source' in content:
+                    source = content['source']
+                elif 'publisher' in content:
+                    source = content['publisher']
+                else:
+                    source = "Financial News"
+                
+                # Get URL - check for different possible structures
+                url = "#"
+                if 'clickThroughUrl' in content and isinstance(content['clickThroughUrl'], dict) and 'url' in content['clickThroughUrl']:
+                    url = content['clickThroughUrl']['url']
+                elif 'canonicalUrl' in content and isinstance(content['canonicalUrl'], dict) and 'url' in content['canonicalUrl']:
+                    url = content['canonicalUrl']['url']
+                elif 'url' in content:
+                    url = content['url']
+                elif 'link' in content:
+                    url = content['link']
+                
+                # Get summary/description
+                summary = ""
+                if 'summary' in content and content['summary']:
+                    summary = content['summary']
+                elif 'description' in content and content['description']:
+                    summary = content['description']
+                    
+                # Sometimes there's no summary but there might be a description
+                if not summary and 'description' in content:
+                    summary = content['description']
+                
+                # Get publish date
+                published = datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+                try:
+                    if 'pubDate' in content and content['pubDate']:
+                        # Try to parse ISO format date
+                        pub_date = datetime.datetime.strptime(content['pubDate'], '%Y-%m-%dT%H:%M:%SZ')
+                        published = pub_date.strftime('%Y-%m-%d %H:%M')
+                    elif 'displayTime' in content and content['displayTime']:
+                        pub_date = datetime.datetime.strptime(content['displayTime'], '%Y-%m-%dT%H:%M:%SZ')
+                        published = pub_date.strftime('%Y-%m-%d %H:%M')
+                    elif 'providerPublishTime' in content:
+                        pub_time = content['providerPublishTime']
+                        published = datetime.datetime.fromtimestamp(pub_time).strftime('%Y-%m-%d %H:%M')
+                except Exception as time_error:
+                    print(f"Error processing time: {time_error}")
                 
                 # Truncate summary text
                 text = summary[:150] + "..." if summary and len(summary) > 150 else summary
@@ -220,18 +269,17 @@ def get_stock_news_for_ticker(ticker, limit=5):
                     'text': text,
                     'published': published
                 })
+                print(f"Successfully processed article: {title}")
+                
             except Exception as e:
-                print(f"Error processing news article: {e}")
+                print(f"Error processing news article {i+1}: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
         
-        # Log detailed information about the processed news
-        print(f"Successfully processed {len(processed_news)} news items for {ticker}")
-        if processed_news:
-            print(f"First news item: {processed_news[0]['title']}")
-        else:
-            print("No news was successfully processed")
-            
-            # If processing failed for all items, add at least one fallback item
+        # If still no processed news items, add fallback
+        if not processed_news:
+            print("No news was successfully processed, adding fallback item")
             processed_news.append({
                 'title': f"Recent Market Activity for {ticker}",
                 'source': 'Market News',
@@ -241,7 +289,8 @@ def get_stock_news_for_ticker(ticker, limit=5):
                 'text': f"Stay updated on the latest {ticker} market activity and financial performance.",
                 'published': datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
             })
-            
+        
+        print(f"Final news item count: {len(processed_news)}")
         return processed_news
         
     except Exception as e:
