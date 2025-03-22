@@ -25,6 +25,376 @@ analyzer = SentimentIntensityAnalyzer()
 # Improved function to fetch news from Alpha Vantage with better error handling
 analyzer = SentimentIntensityAnalyzer()  # Initialize VADER sentiment analyzer
 
+def get_stock_info(ticker):
+    """
+    Get comprehensive information about a stock
+    
+    Parameters:
+    ticker (str): Stock ticker symbol
+    
+    Returns:
+    dict: Stock information including price, 52 week high/low, etc.
+    """
+    try:
+        # Initialize empty result dictionary with default values
+        result = {
+            'symbol': ticker.upper(),
+            'name': 'Unknown',
+            'price': 0,
+            'change': 0,
+            'change_percent': 0,
+            'volume': 0,
+            'avg_volume': 0,
+            'market_cap': 0,
+            'beta': 0,
+            'pe_ratio': 0,
+            'eps': 0,
+            'dividend_yield': 0,
+            'target_price': 0,
+            '52_week_high': 0,
+            '52_week_low': 0,
+            'exchange': '',
+            'sector': '',
+            'industry': '',
+            'country': '',
+            'logo': None,
+            'website': None,
+            'description': None,
+            'error': None
+        }
+        
+        # Fetch basic info about the stock
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        
+        # Check if we got valid information
+        if not info or not isinstance(info, dict) or len(info.keys()) <= 3:
+            return {'error': f"Could not find information for ticker '{ticker}'. Please verify the symbol."}
+            
+        # Update the result dictionary with actual values
+        result['name'] = info.get('longName', info.get('shortName', ticker.upper()))
+        result['price'] = info.get('currentPrice', info.get('regularMarketPrice', 0))
+        result['change'] = info.get('regularMarketChange', 0)
+        result['change_percent'] = info.get('regularMarketChangePercent', 0)
+        result['volume'] = info.get('volume', info.get('regularMarketVolume', 0))
+        result['avg_volume'] = info.get('averageVolume', 0)
+        result['market_cap'] = info.get('marketCap', 0)
+        result['beta'] = info.get('beta', 0)
+        result['pe_ratio'] = info.get('trailingPE', info.get('forwardPE', 0))
+        result['eps'] = info.get('trailingEps', 0)
+        result['dividend_yield'] = info.get('dividendYield', 0) * 100 if info.get('dividendYield') else 0
+        result['target_price'] = info.get('targetMeanPrice', 0)
+        result['52_week_high'] = info.get('fiftyTwoWeekHigh', 0)
+        result['52_week_low'] = info.get('fiftyTwoWeekLow', 0)
+        result['exchange'] = info.get('exchange', info.get('fullExchangeName', ''))
+        result['sector'] = info.get('sector', '')
+        result['industry'] = info.get('industry', '')
+        result['country'] = info.get('country', '')
+        result['logo'] = info.get('logo_url', None)
+        result['website'] = info.get('website', None)
+        result['description'] = info.get('longBusinessSummary', None)
+        
+        # Check if we actually got the essential data
+        if not result['price'] or result['price'] == 0:
+            # This might be an invalid ticker or data might not be available
+            return {'error': f"Unable to retrieve price data for ticker '{ticker}'. This may not be a valid symbol or the market might be closed."}
+
+        # Format numbers for display
+        try:
+            result['price'] = f"{float(result['price']):.2f}" if result['price'] else "N/A"
+            result['change'] = f"{float(result['change']):.2f}" if result['change'] else "N/A"
+            result['change_percent'] = f"{float(result['change_percent']):.2f}" if result['change_percent'] else "N/A"
+            result['market_cap'] = format_large_number(result['market_cap']) if result['market_cap'] else "N/A"
+            result['volume'] = format_large_number(result['volume']) if result['volume'] else "N/A"
+            result['avg_volume'] = format_large_number(result['avg_volume']) if result['avg_volume'] else "N/A"
+            result['pe_ratio'] = f"{float(result['pe_ratio']):.2f}" if result['pe_ratio'] else "N/A"
+            result['eps'] = f"{float(result['eps']):.2f}" if result['eps'] else "N/A"
+            result['dividend_yield'] = f"{float(result['dividend_yield']):.2f}%" if result['dividend_yield'] else "N/A"
+            result['target_price'] = f"{float(result['target_price']):.2f}" if result['target_price'] else "N/A"
+            result['52_week_high'] = f"{float(result['52_week_high']):.2f}" if result['52_week_high'] else "N/A"
+            result['52_week_low'] = f"{float(result['52_week_low']):.2f}" if result['52_week_low'] else "N/A"
+            result['beta'] = f"{float(result['beta']):.2f}" if result['beta'] else "N/A"
+        except (ValueError, TypeError) as e:
+            print(f"Error formatting values for {ticker}: {e}")
+            # Continue with unformatted values rather than failing entirely
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error fetching data for {ticker}: {e}")
+        return {'error': f"Error fetching data for {ticker}: {str(e)}"}
+
+def format_large_number(num):
+    """Format large numbers with K, M, B, T suffixes"""
+    if not num or num == 0:
+        return "N/A"
+        
+    num = float(num)
+    magnitude = 0
+    
+    while abs(num) >= 1000:
+        magnitude += 1
+        num /= 1000.0
+        
+    suffix = ['', 'K', 'M', 'B', 'T'][min(magnitude, 4)]
+    return f"{num:.2f}{suffix}"
+
+def get_stock_news_for_ticker(ticker, limit=5):
+    """
+    Get news specifically about a single stock ticker with improved error handling
+    
+    Parameters:
+    ticker (str): Stock ticker symbol
+    limit (int): Maximum number of news items to return
+    
+    Returns:
+    list: List of processed news articles with sentiment analysis
+    """
+    try:
+        print(f"Fetching news for ticker: {ticker}")
+        stock = yf.Ticker(ticker)
+        news_items = []
+        
+        try:
+            # Try to get news using get_news method
+            news_items = stock.get_news()
+            print(f"Retrieved {len(news_items) if news_items else 0} news items via yfinance get_news()")
+        except Exception as e:
+            print(f"Error using get_news() for {ticker}: {e}")
+            news_items = []
+        
+        # If no news found via yfinance, try Alpha Vantage
+        if not news_items or len(news_items) == 0:
+            print(f"No news found via yfinance for {ticker}, trying Alpha Vantage...")
+            # Try Alpha Vantage as fallback
+            try:
+                tickers_param = ticker
+                news_items = get_alpha_vantage_news(API_KEY, tickers=tickers_param, limit=limit)
+                print(f"Retrieved {len(news_items) if news_items else 0} news items via Alpha Vantage")
+            except Exception as e:
+                print(f"Error getting Alpha Vantage news for {ticker}: {e}")
+                news_items = []
+        
+        # If still no news, use fallback data
+        if not news_items or len(news_items) == 0:
+            print(f"No news found for {ticker}, using fallback data...")
+            news_items = get_fallback_news_data(limit)
+            # Customize fallback data for this ticker
+            for item in news_items:
+                item['title'] = item['title'].replace('Markets', f"{ticker} Stock")
+                
+        # Process news with proper error handling
+        processed_news = []
+        for article in news_items[:limit]:
+            try:
+                # Extract basic article information with fallbacks
+                title = article.get('title', 'No Title')
+                if not title or title == 'No Title':
+                    # Skip articles without titles
+                    continue
+                    
+                source = article.get('publisher', article.get('source', 'Financial News'))
+                url = article.get('link', article.get('url', '#'))
+                summary = article.get('summary', '')
+                
+                # Use current timestamp if providerPublishTime is missing
+                publish_time = article.get('providerPublishTime', int(time.time()))
+                published = datetime.datetime.fromtimestamp(publish_time).strftime('%Y-%m-%d %H:%M')
+                
+                # Truncate summary text
+                text = summary[:150] + "..." if summary and len(summary) > 150 else summary
+                
+                # Sentiment analysis using VADER
+                sentiment_scores = analyzer.polarity_scores(title)
+                compound_score = sentiment_scores['compound']
+                
+                sentiment = 'positive' if compound_score >= 0.05 else \
+                         'negative' if compound_score <= -0.05 else 'neutral'
+                
+                processed_news.append({
+                    'title': title,
+                    'source': source,
+                    'sentiment': sentiment,
+                    'compound_score': round(compound_score, 3),
+                    'url': url,
+                    'text': text,
+                    'published': published
+                })
+            except Exception as e:
+                print(f"Error processing news article: {e}")
+                continue
+        
+        # Log detailed information about the processed news
+        print(f"Successfully processed {len(processed_news)} news items for {ticker}")
+        if processed_news:
+            print(f"First news item: {processed_news[0]['title']}")
+        else:
+            print("No news was successfully processed")
+            
+            # If processing failed for all items, add at least one fallback item
+            processed_news.append({
+                'title': f"Recent Market Activity for {ticker}",
+                'source': 'Market News',
+                'sentiment': 'neutral',
+                'compound_score': 0.0,
+                'url': '#',
+                'text': f"Stay updated on the latest {ticker} market activity and financial performance.",
+                'published': datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+            })
+            
+        return processed_news
+        
+    except Exception as e:
+        print(f"Error in get_stock_news_for_ticker for {ticker}: {e}")
+        # Return a fallback news item to ensure the news section isn't empty
+        return [{
+            'title': f"Market Update: {ticker}",
+            'source': 'Financial News',
+            'sentiment': 'neutral',
+            'compound_score': 0.0,
+            'url': '#',
+            'text': f"Follow {ticker} for the latest updates and market performance.",
+            'published': datetime.datetime.now().strftime('%Y-%m-%d %H:%M')
+        }]
+
+# Add this route to handle stock search
+@app.route('/search')
+def search():
+    query = request.args.get('q', '')
+    
+    if not query:
+        return render_template('search.html', 
+                              search_performed=False,
+                              stock={},
+                              news=[],
+                              chart_data={'dates': [], 'prices': []})
+    
+    # Clean up query - remove spaces, convert to uppercase
+    ticker = query.strip().upper()
+    print(f"Processing search for ticker: {ticker}")
+    
+    # Get stock information
+    try:
+        stock_info = get_stock_info(ticker)
+        
+        # Check if there was an error
+        if 'error' in stock_info and stock_info['error'] is not None:
+            print(f"Error in stock data: {stock_info['error']}")
+            return render_template('search.html', 
+                                  search_performed=True,
+                                  error=stock_info['error'],
+                                  query=query,
+                                  stock={},
+                                  news=[],
+                                  chart_data={'dates': [], 'prices': []})
+    except Exception as e:
+        print(f"Exception in get_stock_info for {ticker}: {str(e)}")
+        return render_template('search.html', 
+                              search_performed=True,
+                              error=f"Error processing stock data: {str(e)}",
+                              query=query,
+                              stock={},
+                              news=[],
+                              chart_data={'dates': [], 'prices': []})
+    
+    # Get news for this stock with improved error handling
+    stock_news = []
+    try:
+        stock_news = get_stock_news_for_ticker(ticker)
+        print(f"Retrieved {len(stock_news)} news items for {ticker}")
+        
+        # Debug the first news item to verify structure
+        if stock_news and len(stock_news) > 0:
+            print(f"First news item title: {stock_news[0]['title']}")
+            print(f"News item keys: {stock_news[0].keys()}")
+        else:
+            print("No news items were returned")
+            # Ensure we at least have an empty list
+            stock_news = []
+    except Exception as e:
+        print(f"Error retrieving news for {ticker}: {e}")
+        import traceback
+        traceback.print_exc()
+        # Set default empty news list
+        stock_news = []
+    
+    # Get historical data for chart 
+    chart_data = {'dates': [], 'prices': []}
+    try:
+        today = datetime.date.today()
+        start_date = today - datetime.timedelta(days=365)  # Default to 1 year
+        
+        print(f"Fetching historical data for {ticker} from {start_date} to {today}")
+        historical_data = yf.download(ticker, start=start_date, end=today)
+        
+        if not historical_data.empty and len(historical_data) > 1:
+            historical_data.reset_index(inplace=True)
+            
+            # Convert to a list of strings for dates
+            dates = historical_data['Date'].dt.strftime('%Y-%m-%d').tolist()
+            
+            # Fix the prices conversion with better error handling
+            prices = []
+            for price in historical_data['Close'].values:
+                # Handle different data types that might be returned
+                if isinstance(price, (int, float)):
+                    # If it's already a number, just append it
+                    prices.append(float(price))
+                elif isinstance(price, list):
+                    # If it's a list, take the first numeric value if available
+                    print(f"WARNING: Found a list where a single value was expected: {price}")
+                    for item in price:
+                        if isinstance(item, (int, float)):
+                            prices.append(float(item))
+                            break
+                    else:
+                        # If no numeric value found, use 0
+                        prices.append(0.0)
+                elif price is None or pd.isna(price):
+                    # Handle None or NaN values
+                    prices.append(None)
+                else:
+                    # Try converting string or other types
+                    try:
+                        prices.append(float(price))
+                    except (TypeError, ValueError):
+                        # If conversion fails, use None
+                        print(f"WARNING: Could not convert price value to float: {price}")
+                        prices.append(None)
+            
+            # Remove any None values from prices and corresponding dates
+            valid_data = [(d, p) for d, p in zip(dates, prices) if p is not None]
+            if valid_data:
+                dates = [item[0] for item in valid_data]
+                prices = [item[1] for item in valid_data]
+                
+                # Debug output
+                print(f"Processed {len(prices)} valid price points out of {len(historical_data)} records")
+            else:
+                print("No valid price data found after filtering")
+            
+            # Prepare data for the chart
+            chart_data = {
+                'dates': dates,
+                'prices': prices
+            }
+        else:
+            print(f"No historical data available for {ticker} or insufficient data points")
+    except Exception as e:
+        print(f"Error fetching historical data for {ticker}: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    print(f"Rendering template with {len(stock_news)} news items and {len(chart_data['dates'])} chart points")
+    
+    # Render template with all data
+    return render_template('search.html', 
+                          search_performed=True,
+                          stock=stock_info,
+                          news=stock_news,
+                          chart_data=chart_data,
+                          query=query)
+
 def get_stock_market_news(ticker="^GSPC", limit=10, max_retries=3, retry_delay=1):
     """
     Fetch news related to stock market using yfinance with improved reliability
@@ -77,22 +447,30 @@ def get_stock_market_news(ticker="^GSPC", limit=10, max_retries=3, retry_delay=1
     print("All retry attempts failed, using fallback news data")
     return get_fallback_news_data(limit)
 
-def get_alpha_vantage_news(api_key, topics="technology,business,economy", limit=10):
+def get_alpha_vantage_news(api_key, topics="technology,business,economy", tickers=None, limit=10):
     """
     Fetch news from Alpha Vantage API instead of yfinance
     
     Parameters:
     api_key (str): Alpha Vantage API key
     topics (str): Comma-separated list of news topics
+    tickers (str): Comma-separated list of ticker symbols to filter by
     limit (int): Maximum number of news articles to return
     
     Returns:
     list: List of news articles in a format similar to yfinance
     """
     try:
-        url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics={topics}&apikey={api_key}"
-        print(f"Fetching news from Alpha Vantage API with topics: {topics}")
+        base_url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&apikey={api_key}"
         
+        # Add topics or tickers to the query depending on what's provided
+        if tickers:
+            url = f"{base_url}&tickers={tickers}"
+            print(f"Fetching news from Alpha Vantage API for tickers: {tickers}")
+        else:
+            url = f"{base_url}&topics={topics}"
+            print(f"Fetching news from Alpha Vantage API with topics: {topics}")
+            
         response = requests.get(url)
         if response.status_code != 200:
             print(f"Error: Alpha Vantage API returned status code {response.status_code}")
