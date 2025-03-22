@@ -73,12 +73,12 @@ def process_news(articles):
 @app.route('/')
 def home():
     indices = {
-        '^GSPC': 'S&P 500',
-        '^DJI': 'Dow Jones',
-        '^IXIC': 'NASDAQ',
-        '^RUT': 'Russell 2000',
-        '^NSEI': 'Nifty 50',
-        '^BSESN': 'Sensex',
+        'SPY': 'S&P 500',  # Changed from ^GSPC to SPY ETF
+        'DIA': 'Dow Jones',  # Changed from ^DJI to DIA ETF
+        'QQQ': 'NASDAQ',  # Changed from ^IXIC to QQQ ETF
+        'IWM': 'Russell 2000',  # Changed from ^RUT to IWM ETF
+        'INDA': 'Nifty 50',  # Changed from ^NSEI to INDA ETF (India)
+        'EPI': 'Sensex',  # Changed from ^BSESN to EPI ETF (India)
     }
 
     today = datetime.date.today()
@@ -88,9 +88,8 @@ def home():
     for symbol, name in indices.items():
         try:
             data = yf.download(symbol, start=start_date, end=today)
-            data.reset_index(inplace=True)
-            data.columns = data.columns.droplevel(1)
             if not data.empty and len(data) >= 2:
+                # Fix the column access issue
                 latest_price = data['Close'].iloc[-1]
                 prev_price = data['Close'].iloc[-2]
                 pct_change = ((latest_price - prev_price) / prev_price) * 100
