@@ -27,45 +27,110 @@ analyzer = SentimentIntensityAnalyzer()  # Initialize VADER sentiment analyzer
 
 def get_stock_market_news(ticker="^GSPC", limit=10, max_retries=3, retry_delay=1):
     """
-    Fetch news related to stock market using yfinance with retry mechanism
-    
-    Parameters:
-    ticker (str): Stock ticker symbol (default: ^GSPC for S&P 500)
-    limit (int): Maximum number of news articles to return
-    max_retries (int): Maximum number of retry attempts
-    retry_delay (int): Delay between retries in seconds
-    
-    Returns:
-    list: List of news articles or fallback data if failed
+    Fetch news related to stock market using yfinance with improved reliability
     """
     retry_count = 0
     while retry_count < max_retries:
         try:
-            # Create yfinance Ticker object
-            market = yf.Ticker(ticker)
+            print(f"Attempt {retry_count+1} to fetch news for {ticker}")
             
-            # Get news items
-            news_items = market.news
+            # Try multiple tickers if one fails
+            tickers_to_try = [ticker, "SPY", "AAPL", "MSFT", "AMZN"]
             
-            if news_items:
-                # Return limited number of articles
-                return news_items[:min(limit, len(news_items))]
-            else:
-                print(f"No news items returned for ticker {ticker}")
-                
-            # Increment retry count and wait before next attempt
+            for current_ticker in tickers_to_try:
+                try:
+                    print(f"Trying to fetch news for {current_ticker}")
+                    stock = yf.Ticker(current_ticker)
+                    
+                    # Important: Use stock.get_news() instead of stock.news for more consistent results
+                    # The .news property can sometimes be inconsistent
+                    news_items = stock.get_news()
+                    
+                    if isinstance(news_items, list) and len(news_items) > 0:
+                        print(f"Successfully fetched {len(news_items)} news items from {current_ticker}")
+                        
+                        # Validate the news item structure
+                        valid_items = []
+                        for item in news_items:
+                            if 'title' in item and 'link' in item:
+                                valid_items.append(item)
+                        
+                        if valid_items:
+                            return valid_items[:min(limit, len(valid_items))]
+                except Exception as e:
+                    print(f"Error fetching news for {current_ticker}: {e}")
+                    continue  # Try the next ticker
+            
+            # If we get here, none of the tickers worked
+            print("None of the tickers provided valid news")
             retry_count += 1
             if retry_count < max_retries:
+                print(f"Waiting {retry_delay} seconds before retry...")
                 time.sleep(retry_delay)
                 
         except Exception as e:
-            print(f"Error fetching news from yfinance: {e}")
+            print(f"Error in news fetch attempt: {e}")
             retry_count += 1
             if retry_count < max_retries:
                 time.sleep(retry_delay)
     
-    # Return fallback data if all retries failed
+    print("All retry attempts failed, using fallback news data")
     return get_fallback_news_data(limit)
+
+def get_alpha_vantage_news(api_key, topics="technology,business,economy", limit=10):
+    """
+    Fetch news from Alpha Vantage API instead of yfinance
+    
+    Parameters:
+    api_key (str): Alpha Vantage API key
+    topics (str): Comma-separated list of news topics
+    limit (int): Maximum number of news articles to return
+    
+    Returns:
+    list: List of news articles in a format similar to yfinance
+    """
+    try:
+        url = f"https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics={topics}&apikey={api_key}"
+        print(f"Fetching news from Alpha Vantage API with topics: {topics}")
+        
+        response = requests.get(url)
+        if response.status_code != 200:
+            print(f"Error: Alpha Vantage API returned status code {response.status_code}")
+            return get_fallback_news_data(limit)
+            
+        data = response.json()
+        
+        # Check if we got valid data
+        if 'feed' not in data or not isinstance(data['feed'], list) or len(data['feed']) == 0:
+            print("Error: Alpha Vantage API returned invalid data structure")
+            print(f"Response keys: {data.keys()}")
+            return get_fallback_news_data(limit)
+            
+        # Convert Alpha Vantage format to match yfinance format
+        news_items = []
+        for item in data['feed'][:limit]:
+            try:
+                news_item = {
+                    'title': item.get('title', 'No Title'),
+                    'publisher': item.get('source', 'Alpha Vantage'),
+                    'link': item.get('url', '#'),
+                    'summary': item.get('summary', ''),
+                    'providerPublishTime': int(datetime.datetime.strptime(
+                        item.get('time_published', '20240322T120000'), 
+                        '%Y%m%dT%H%M%S'
+                    ).timestamp())
+                }
+                news_items.append(news_item)
+            except Exception as e:
+                print(f"Error processing news item: {e}")
+                continue
+                
+        print(f"Successfully fetched {len(news_items)} news items from Alpha Vantage")
+        return news_items
+        
+    except Exception as e:
+        print(f"Error fetching news from Alpha Vantage: {e}")
+        return get_fallback_news_data(limit)
 
 def get_fallback_news_data(limit=5):
     """Generate fallback news data when API fails"""
@@ -96,35 +161,50 @@ def get_fallback_news_data(limit=5):
 
 def process_news(articles):
     """Process news articles and add sentiment analysis"""
+    if not articles:
+        print("No articles to process")
+        return []
+        
     news_data = []
-    for article in articles:
-        title = article.get('title', 'No Title')
-        source = article.get('publisher', 'Unknown Source')
-        url = article.get('link', '#')
-        summary = article.get('summary', '')
-        published = datetime.datetime.fromtimestamp(
-            article.get('providerPublishTime', 0)
-        ).strftime('%Y%m%dT%H%M%S')
-        
-        # Truncate summary text
-        text = summary[:150] + "..." if summary and len(summary) > 150 else summary
-        
-        # Sentiment analysis using VADER
-        sentiment_scores = analyzer.polarity_scores(title)
-        compound_score = sentiment_scores['compound']
-        
-        sentiment = 'positive' if compound_score >= 0.05 else \
-                   'negative' if compound_score <= -0.05 else 'neutral'
-        
-        news_data.append({
-            'title': title,
-            'source': source,
-            'sentiment': sentiment,
-            'compound_score': round(compound_score, 3),
-            'url': url,
-            'text': text,
-            'published': published
-        })
+    try:
+        for article in articles:
+            try:
+                title = article.get('title', 'No Title')
+                source = article.get('publisher', 'Unknown Source')
+                url = article.get('link', '#')
+                summary = article.get('summary', '')
+                
+                # Use current timestamp if providerPublishTime is missing
+                publish_time = article.get('providerPublishTime', int(time.time()))
+                published = datetime.datetime.fromtimestamp(publish_time).strftime('%Y%m%dT%H%M%S')
+                
+                # Truncate summary text
+                text = summary[:150] + "..." if summary and len(summary) > 150 else summary
+                
+                # Sentiment analysis using VADER
+                sentiment_scores = analyzer.polarity_scores(title)
+                compound_score = sentiment_scores['compound']
+                
+                sentiment = 'positive' if compound_score >= 0.05 else \
+                          'negative' if compound_score <= -0.05 else 'neutral'
+                
+                news_data.append({
+                    'title': title,
+                    'source': source,
+                    'sentiment': sentiment,
+                    'compound_score': round(compound_score, 3),
+                    'url': url,
+                    'text': text,
+                    'published': published
+                })
+            except Exception as e:
+                print(f"Error processing individual article: {e}")
+                # Continue with next article instead of failing entirely
+                continue
+    except Exception as e:
+        print(f"Error in process_news: {e}")
+    
+    print(f"Processed {len(news_data)} articles")
     return news_data
 
 @app.route('/')
@@ -154,41 +234,53 @@ def home():
                 pct_change = ((latest_price - prev_price) / prev_price) * 100
                 point_change = latest_price - prev_price
                 
-                # Fix: Convert to float first, then format
                 formatted_price = "{:,.2f}".format(float(latest_price))
                 
                 indices_data[name] = {
                     'price': formatted_price,
-                    'pct_change': round(float(pct_change), 2),  # Ensure it's a float
-                    'point_change': round(float(point_change), 2)  # Ensure it's a float
+                    'pct_change': round(float(pct_change), 2),
+                    'point_change': round(float(point_change), 2)
                 }
         except Exception as e:
             print(f"Error fetching {name} data: {e}")
     
-    # Get news articles from Alpha Vantage
+    # Try multiple methods to get news - first try yfinance
+    print("Attempting to fetch news using yfinance...")
     articles = get_stock_market_news()
-
-    print(f"Retrieved {len(articles)} articles from Alpha Vantage")
+    
+    # If yfinance failed or returned no valid results, try Alpha Vantage
+    if not articles or len(articles) == 0 or articles[0].get('title') == 'Markets React to Recent Economic Data':
+        print("yfinance news retrieval failed or returned fallback data, trying Alpha Vantage...")
+        articles = get_alpha_vantage_news(API_KEY)
+    
+    print(f"Final news article count: {len(articles)}")
+    
+    # Process news with error handling
     formatted_news = process_news(articles)
+    
+    # Debug - print first news item
+    if formatted_news and len(formatted_news) > 0:
+        print("First news item after processing:")
+        print(formatted_news[0])
+    else:
+        print("No news items after processing!")
+    
     last_updated = datetime.datetime.now().strftime("%B %d, %Y %I:%M %p")
     
     # Add inflation_data to fix the template error
     try:
-        # Try to get inflation data from FRED - similar to your ww_eco route
         inflation_data = get_fred_data("T5YIE")
         if inflation_data.empty:
-            # Create a minimal placeholder DataFrame with proper structure
             inflation_data = pd.DataFrame({'T5YIE': []}, index=[])
     except Exception as e:
         print(f"Error fetching inflation data: {e}")
-        # Create a minimal placeholder DataFrame with proper structure
         inflation_data = pd.DataFrame({'T5YIE': []}, index=[])
     
     return render_template('index.html', 
                           indices_data=indices_data, 
                           last_updated=last_updated, 
                           news_data=formatted_news,
-                          inflation_data=inflation_data)  # Add this parameter
+                          inflation_data=inflation_data)
 
 
 def Indian_GL(url):
