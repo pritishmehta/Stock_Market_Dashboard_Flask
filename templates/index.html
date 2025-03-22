@@ -18,6 +18,7 @@
     {% elif request.path == url_for('ww_eco') %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ww_eco.css') }}">
     {% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
     <!-- Additional head content -->
     {% block head_extra %}{% endblock %}
 </head>
