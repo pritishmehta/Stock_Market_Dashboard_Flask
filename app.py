@@ -73,12 +73,12 @@ def process_news(articles):
 @app.route('/')
 def home():
     indices = {
-        'SPY': 'S&P 500',  # Changed from ^GSPC to SPY ETF
-        'DIA': 'Dow Jones',  # Changed from ^DJI to DIA ETF
-        'QQQ': 'NASDAQ',  # Changed from ^IXIC to QQQ ETF
-        'IWM': 'Russell 2000',  # Changed from ^RUT to IWM ETF
-        'INDA': 'Nifty 50',  # Changed from ^NSEI to INDA ETF (India)
-        'EPI': 'Sensex',  # Changed from ^BSESN to EPI ETF (India)
+        '^GSPC': 'S&P 500',
+        '^DJI': 'Dow Jones',
+        '^IXIC': 'NASDAQ',
+        '^RUT': 'Russell 2000',
+        '^NSEI': 'Nifty 50',
+        '^BSESN': 'Sensex',
     }
 
     today = datetime.date.today()
@@ -88,17 +88,22 @@ def home():
     for symbol, name in indices.items():
         try:
             data = yf.download(symbol, start=start_date, end=today)
+            data.reset_index(inplace=True)
+            data.columns = data.columns.droplevel(1) if 'Close' in data.columns.levels[1] else data.columns
+            
             if not data.empty and len(data) >= 2:
-                # Fix the column access issue
                 latest_price = data['Close'].iloc[-1]
                 prev_price = data['Close'].iloc[-2]
                 pct_change = ((latest_price - prev_price) / prev_price) * 100
                 point_change = latest_price - prev_price
-                formatted_price = "{:,.2f}".format(latest_price)
+                
+                # Fix: Convert to float first, then format
+                formatted_price = "{:,.2f}".format(float(latest_price))
+                
                 indices_data[name] = {
                     'price': formatted_price,
-                    'pct_change': round(pct_change, 2),
-                    'point_change': round(point_change, 2)
+                    'pct_change': round(float(pct_change), 2),  # Ensure it's a float
+                    'point_change': round(float(point_change), 2)  # Ensure it's a float
                 }
         except Exception as e:
             print(f"Error fetching {name} data: {e}")
