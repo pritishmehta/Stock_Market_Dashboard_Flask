@@ -3,13 +3,21 @@
 {% block title %}Stock Search{% endblock %}
 
 {% block head_extra %}
-<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+<!-- Use a specific version of Plotly for better reliability -->
+<script src="https://cdn.jsdelivr.net/npm/plotly.js@2.24.1/dist/plotly.min.js"></script>
+<script>
+  // Check if Plotly loaded correctly
+  window.addEventListener('load', function() {
+    console.log("Window loaded, Plotly available:", typeof Plotly !== 'undefined');
+  });
+</script>
 <style>
-    /* Same styles as before */
+    /* Main container styles */
     .search-result-container {
         margin-top: 2rem;
     }
     
+    /* Stock header section */
     .stock-header {
         display: grid;
         grid-template-columns: 1fr auto;
@@ -73,12 +81,14 @@
         font-weight: 500;
     }
     
+    /* Main content grid */
     .search-grid {
         display: grid;
         grid-template-columns: 2fr 1fr;
         gap: 2rem;
     }
     
+    /* Chart section */
     .chart-section {
         background-color: var(--bg-card);
         border-radius: 0.75rem;
@@ -88,6 +98,7 @@
         margin-bottom: 2rem;
     }
     
+    /* Stock details section */
     .detail-section {
         background-color: var(--bg-card);
         border-radius: 0.75rem;
@@ -119,6 +130,7 @@
         font-weight: 600;
     }
     
+    /* Company description */
     .company-description {
         background-color: var(--bg-card);
         border-radius: 0.75rem;
@@ -133,6 +145,7 @@
         line-height: 1.6;
     }
     
+    /* News section */
     .search-news {
         margin-top: 2rem;
         background-color: var(--bg-card);
@@ -142,7 +155,89 @@
         border: 1px solid rgba(255, 255, 255, 0.05);
     }
     
-    .no-news-message {
+    .news-grid {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .news-card {
+        padding: 1.25rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        transition: background-color 0.2s ease;
+    }
+    
+    .news-card:hover {
+        background-color: rgba(255, 255, 255, 0.03);
+    }
+    
+    .news-card:last-child {
+        border-bottom: none;
+    }
+    
+    .news-card h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        line-height: 1.4;
+    }
+    
+    .news-card h3 a {
+        color: var(--text-primary);
+        text-decoration: none;
+    }
+    
+    .news-card h3 a:hover {
+        text-decoration: underline;
+    }
+    
+    .news-card .source {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    
+    .news-card .source .published {
+        font-size: 0.75rem;
+        opacity: 0.8;
+    }
+    
+    .news-card .text {
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--text-secondary);
+        margin-bottom: 0.75rem;
+    }
+    
+    /* Sentiment indicators */
+    .sentiment {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .sentiment.positive {
+        background-color: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+    
+    .sentiment.negative {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+    
+    .sentiment.neutral {
+        background-color: rgba(148, 163, 184, 0.1);
+        color: #94a3b8;
+    }
+    
+    /* Error and message styles */
+    .no-news-message,
+    .error-message {
         color: var(--text-secondary);
         text-align: center;
         padding: 2rem;
@@ -165,6 +260,7 @@
         color: var(--accent-red);
     }
     
+    /* Initial search page styles */
     .search-instructions {
         background-color: var(--bg-card);
         border-radius: 0.75rem;
@@ -180,12 +276,6 @@
     }
     
     .search-instructions p {
-        margin-bottom: 1rem;
-        color: var(--text-secondary);
-    }
-    
-    .search-instructions ul {
-        margin-left: 1.5rem;
         margin-bottom: 1rem;
         color: var(--text-secondary);
     }
@@ -210,115 +300,22 @@
         background-color: rgba(59, 130, 246, 0.2);
     }
     
-    /* Added styles for error messages */
-    .error-message {
-        text-align: center;
-        padding: 2rem;
-        color: #cbd5e1;
-        background-color: rgba(0, 0, 0, 0.1);
-        border-radius: 0.5rem;
+    /* Chart loading indicator */
+    .chart-loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(17, 24, 39, 0.7);
+        z-index: 10;
     }
     
-    /* CSS for news section */
-.news-grid {
-    display: flex;
-    flex-direction: column;
-}
-
-.news-card {
-    padding: 1.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    transition: background-color 0.2s ease;
-}
-
-.news-card:hover {
-    background-color: rgba(255, 255, 255, 0.03);
-}
-
-.news-card:last-child {
-    border-bottom: none;
-}
-
-.news-card h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-    line-height: 1.4;
-}
-
-.news-card h3 a {
-    color: var(--text-primary);
-    text-decoration: none;
-}
-
-.news-card h3 a:hover {
-    text-decoration: underline;
-}
-
-.news-card .source {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.news-card .source .published {
-    font-size: 0.75rem;
-    opacity: 0.8;
-}
-
-.news-card .text {
-    font-size: 0.95rem;
-    line-height: 1.5;
-    color: var(--text-secondary);
-    margin-bottom: 0.75rem;
-}
-
-.sentiment {
-    display: inline-block;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.8rem;
-    font-weight: 500;
-}
-
-.sentiment.positive {
-    background-color: rgba(16, 185, 129, 0.1);
-    color: #10b981;
-}
-
-.sentiment.negative {
-    background-color: rgba(239, 68, 68, 0.1);
-    color: #ef4444;
-}
-
-.sentiment.neutral {
-    background-color: rgba(148, 163, 184, 0.1);
-    color: #94a3b8;
-}
-
-.no-news-message {
-    color: var(--text-secondary);
-    text-align: center;
-    padding: 2rem;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 0.5rem;
-}
-
-/* Debug style */
-.debug-info {
-    margin-top: 1rem;
-    padding: 0.5rem;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-radius: 0.25rem;
-    font-family: monospace;
-    font-size: 0.8rem;
-    color: #94a3b8;
-    white-space: pre-wrap;
-    display: none; /* Hidden by default, can be shown for debugging */
-}
+    /* Responsive styles */
     @media (max-width: 768px) {
         .search-grid {
             grid-template-columns: 1fr;
@@ -357,18 +354,8 @@
                 </div>
             </div>
         {% elif stock is defined and stock %}
-            <!-- Store chart data for JavaScript access -->
-            {% if chart_data and chart_data.dates %}
-            <script type="text/javascript">
-                // Define global variables for chart data
-                var chartDates = {{ chart_data.dates|tojson|safe }};
-                var chartPrices = {{ chart_data.prices|tojson|safe }};
-            </script>
-            <!-- Also store as hidden element as fallback -->
+            <!-- Store chart data in hidden element -->
             <div id="chart-data" style="display: none;">{{ chart_data|tojson|safe }}</div>
-            {% endif %}
-            
-            <!-- Add hidden elements to help script identify values -->
             <div id="stock-symbol" style="display: none;">{{ stock.symbol }}</div>
             
             <div class="stock-header">
@@ -397,13 +384,17 @@
                 <div class="left-column">
                     <div class="chart-section">
                         <h2>Price History</h2>
-                        <div id="stock-chart" style="width: 100%; height: 400px;">
-                            {% if not chart_data or not chart_data.dates or chart_data.dates|length < 2 %}
-                            <div class="error-message">
-                                No historical price data available for this ticker
+                        <div id="stock-chart" style="width: 100%; height: 400px; position: relative;">
+                            <!-- Chart will render here -->
+                            <div class="chart-loading" style="display: flex; justify-content: center; align-items: center; height: 100%; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, 0.7); z-index: 10;">
+                                <div style="text-align: center;">
+                                    <div class="loading-spinner" style="border: 4px solid rgba(59, 130, 246, 0.3); border-top-color: #3b82f6; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 1rem;"></div>
+                                    <p>Loading chart...</p>
+                                </div>
                             </div>
-                            {% endif %}
                         </div>
+                        <!-- Explicit fallback display area for errors -->
+                        <div id="chart-error" style="display: none; padding: 20px; text-align: center; color: #ef4444;"></div>
                     </div>
                     
                     {% if stock.description %}
@@ -422,13 +413,6 @@
                     
                     <div class="search-news">
                         <h2>Recent News</h2>
-                        
-                        <!-- Add a debug display to help troubleshoot -->
-                        <div class="debug-info" id="news-debug" style="display: none;">
-                            News data available: {{ news is defined and news is not none }}
-                            News count: {{ news|length if news is defined and news is not none else 0 }}
-                        </div>
-                        
                         <div class="news-grid">
                             {% if news is defined and news is not none and news|length > 0 %}
                                 {% for article in news %}
@@ -534,226 +518,105 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
-    // Enhanced debug function to check data and dependencies
-    function debugStockData() {
-        console.group('Stock Search Debug Information');
-        
-        // Check if chart element exists
-        const chartElement = document.getElementById('stock-chart');
-        console.log('Chart element exists:', !!chartElement);
-        
-        // Check if Plotly is loaded
-        console.log('Plotly object exists:', typeof Plotly !== 'undefined');
-        if (typeof Plotly === 'undefined') {
-            console.error('ERROR: Plotly library is not loaded properly');
-        }
-        
-        // Check news section
-        const newsSection = document.querySelector('.news-grid');
-        console.log('News section exists:', !!newsSection);
-        
-        // Check news cards
-        const newsCards = document.querySelectorAll('.news-card');
-        console.log('News cards found:', newsCards.length);
-        
-        // Check data structures
-        try {
-            if (typeof chartDates !== 'undefined' && typeof chartPrices !== 'undefined') {
-                console.log('Global chart variables exist');
-                console.log('Chart dates length:', chartDates.length);
-                console.log('Chart prices length:', chartPrices.length);
-                console.log('First 3 dates:', chartDates.slice(0, 3));
-                console.log('First 3 prices:', chartPrices.slice(0, 3));
-            } else {
-                console.log('Global chart variables not found');
-                
-                // Try hidden element
-                const chartData = document.getElementById('chart-data');
-                if (chartData) {
-                    const data = JSON.parse(chartData.textContent);
-                    console.log('Chart data from hidden element successfully parsed');
-                    console.log('Chart dates length:', data.dates.length);
-                    console.log('Chart prices length:', data.prices.length);
-                } else {
-                    console.log('No chart-data element found');
-                }
-            }
-        } catch (error) {
-            console.error('Error accessing chart data:', error);
-        }
-        
-        console.groupEnd();
-    }
-
-    // Function to create the stock chart with improved error handling
-    function createStockChart() {
-        console.log("Attempting to create chart...");
-        
-        // Check chart container
-        const chartElement = document.getElementById('stock-chart');
-        if (!chartElement) {
-            console.error('Chart container element not found!');
-            return;
-        }
-        
-        // Check if Plotly is loaded
-        if (typeof Plotly === 'undefined') {
-            console.error('Plotly library not loaded!');
-            chartElement.innerHTML = '<div class="error-message">Chart library failed to load. Please refresh the page.</div>';
-            return;
-        }
-        
-        // Get chart data
-        let dates = [];
-        let prices = [];
-        
-        try {
-            // First try getting data from variables that should be set in the template
-            if (typeof chartDates !== 'undefined' && typeof chartPrices !== 'undefined') {
-                dates = chartDates;
-                prices = chartPrices;
-            } else {
-                // Try getting from hidden element as fallback
-                const chartDataElement = document.getElementById('chart-data');
-                if (chartDataElement) {
-                    const data = JSON.parse(chartDataElement.textContent);
-                    dates = data.dates;
-                    prices = data.prices;
-                } else {
-                    throw new Error('Cannot find chart data');
-                }
-            }
-            
-            console.log(`Chart data loaded: ${dates.length} points`);
-            
-            // Check if we have enough data points
-            if (!dates || !prices || dates.length < 2 || prices.length < 2) {
-                console.warn('Insufficient data points for chart');
-                chartElement.innerHTML = '<div class="error-message">Insufficient historical data available for chart.</div>';
-                return;
-            }
-            
-            // Get stock symbol
-            const symbolElement = document.getElementById('stock-symbol');
-            const symbol = symbolElement ? symbolElement.textContent : 'Stock';
-            
-            // Determine color based on price change
-            const priceChangeElement = document.querySelector('.price-change');
-            const isPositive = priceChangeElement && priceChangeElement.classList.contains('positive');
-            const color = isPositive ? '#10b981' : '#ef4444';
-            
-            // Create the trace
-            const trace = {
-                x: dates,
-                y: prices,
-                type: 'scatter',
-                mode: 'lines',
-                name: symbol + ' Price',
-                line: {
-                    color: color,
-                    width: 2
-                }
-            };
-            
-            // Create the layout
-            const layout = {
-                title: symbol + ' Price History - 1 Year',
-                xaxis: {
-                    title: 'Date',
-                    showgrid: false,
-                    rangeslider: { visible: false }
-                },
-                yaxis: {
-                    title: 'Price ($)',
-                    showgrid: true,
-                    gridcolor: 'rgba(255, 255, 255, 0.1)'
-                },
-                paper_bgcolor: 'rgba(30, 41, 59, 0.0)',
-                plot_bgcolor: 'rgba(30, 41, 59, 0.0)',
-                margin: {l: 50, r: 30, t: 50, b: 50},
-                hovermode: 'x unified'
-            };
-            
-            // Plot with simplified config
-            console.log("Creating Plotly chart...");
-            Plotly.newPlot('stock-chart', [trace], layout, {
-                responsive: true,
-                displayModeBar: false
-            });
-            
-            console.log("Chart created successfully!");
-            
-            // Make chart responsive
-            window.addEventListener('resize', function() {
-                Plotly.relayout('stock-chart', {
-                    'xaxis.autorange': true,
-                    'yaxis.autorange': true
-                });
-            });
-            
-        } catch (error) {
-            console.error("Error creating chart:", error);
-            chartElement.innerHTML = `<div class="error-message">Error displaying chart: ${error.message}</div>`;
-        }
-    }
-
-    // Function to search for a ticker
-    function searchTicker(ticker) {
-        window.location.href = '/search?q=' + ticker;
-    }
-
-    // Run when the page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        debugStockData();
-        
-        // Check if we should create the chart (only on search results page)
-        const chartElement = document.getElementById('stock-chart');
-        if (chartElement) {
-            console.log("Chart element found, initializing...");
-            // Allow a small delay for Plotly to initialize
-            setTimeout(createStockChart, 100);
-        }
-        
-        // Add click event to ticker examples
-        document.querySelectorAll('.example-ticker').forEach(element => {
-            element.addEventListener('click', function() {
-                const ticker = this.textContent.split(' ')[0];
-                searchTicker(ticker);
-            });
-        });
-    });
-
-    function debugNewsDisplay() {
-    console.group('News Debug');
-    
-    // Check if news data exists
-    const newsData = {{ news|tojson|safe if news is defined and news is not none else '[]' }};
-    console.log('News data array exists:', Array.isArray(newsData));
-    console.log('News items count:', newsData.length);
-    
-    if (newsData.length > 0) {
-        console.log('First news item:', newsData[0]);
-    }
-    
-    // Check DOM elements
-    const newsGrid = document.querySelector('.news-grid');
-    console.log('News grid element exists:', !!newsGrid);
-    
-    const newsCards = document.querySelectorAll('.news-card');
-    console.log('News cards found:', newsCards.length);
-    
-    // Display debug info on page (hidden by default)
-    const debugInfo = document.getElementById('news-debug');
-    if (debugInfo) {
-        debugInfo.textContent = `News data available: ${Array.isArray(newsData)}\nNews count: ${newsData.length}\nFirst item title: ${newsData.length > 0 ? newsData[0].title : 'none'}`;
-    }
-    
-    console.groupEnd();
+// Function to search for a ticker
+function searchTicker(ticker) {
+    window.location.href = '/search?q=' + ticker;
 }
 
-// Call the debug function
-document.addEventListener('DOMContentLoaded', function() {
-    debugNewsDisplay();
+// Chart rendering function
+window.addEventListener('load', function() {
+    console.log("Window fully loaded");
+    
+    // Get elements
+    const chartContainer = document.getElementById('stock-chart');
+    const chartDataElement = document.getElementById('chart-data');
+    
+    if (!chartContainer || !chartDataElement) {
+        console.log("Chart elements not found", {
+            container: !!chartContainer,
+            dataElement: !!chartDataElement
+        });
+        return;
+    }
+    
+    // Remove loading indicator
+    const loadingElement = chartContainer.querySelector('.chart-loading');
+    if (loadingElement) {
+        loadingElement.style.display = 'none';
+    }
+    
+    try {
+        console.log("Raw chart data:", chartDataElement.textContent);
+        
+        // Parse chart data
+        const chartData = JSON.parse(chartDataElement.textContent);
+        console.log("Parsed chart data:", chartData);
+        
+        // Check for valid data
+        if (!chartData.dates || chartData.dates.length === 0) {
+            console.error("No dates in chart data");
+            chartContainer.innerHTML = '<div class="error-message">No date data available</div>';
+            return;
+        }
+        
+        if (!chartData.prices || chartData.prices.length === 0) {
+            console.error("No prices in chart data");
+            chartContainer.innerHTML = '<div class="error-message">No price data available</div>';
+            return;
+        }
+        
+        console.log(`Drawing chart with ${chartData.dates.length} points`);
+        
+        // Check if Plotly is available
+        if (typeof Plotly === 'undefined') {
+            console.error("Plotly is not loaded");
+            chartContainer.innerHTML = '<div class="error-message">Chart library not loaded</div>';
+            return;
+        }
+        
+        // Create basic line chart
+        const trace = {
+            x: chartData.dates,
+            y: chartData.prices,
+            type: 'scatter',
+            mode: 'lines',
+            line: {
+                color: chartData.prices[0] < chartData.prices[chartData.prices.length-1] ? 
+                       '#10b981' : '#ef4444',
+                width: 2
+            }
+        };
+        
+        const layout = {
+            title: 'Price History',
+            xaxis: {
+                title: 'Date',
+                showgrid: false
+            },
+            yaxis: {
+                title: 'Price ($)',
+                showgrid: true,
+                gridcolor: 'rgba(255, 255, 255, 0.1)'
+            },
+            paper_bgcolor: 'rgba(30, 41, 59, 0.0)',
+            plot_bgcolor: 'rgba(30, 41, 59, 0.0)',
+            margin: {l: 50, r: 20, t: 50, b: 50}
+        };
+        
+        // Render chart
+        Plotly.newPlot('stock-chart', [trace], layout)
+            .then(() => console.log("Chart rendered successfully"))
+            .catch(err => {
+                console.error("Plotly rendering error:", err);
+                chartContainer.innerHTML = `<div class="error-message">Chart rendering error: ${err.message}</div>`;
+            });
+        
+    } catch (error) {
+        console.error("Error processing chart data:", error);
+        chartContainer.innerHTML = `<div class="error-message">Error: ${error.message}</div>`;
+    }
+});
 </script>
 {% endblock %}

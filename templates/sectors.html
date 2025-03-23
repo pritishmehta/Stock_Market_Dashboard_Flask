@@ -2,6 +2,221 @@
 
 {% block title %}Sector Performance{% endblock %}
 
+{% block head_extra %}
+<style>
+    /* Additional styles for sector charts */
+    .sector-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    .sector-card {
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: var(--shadow-md);
+    }
+    
+    .sector-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+    }
+    
+    .sector-card h3 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .sector-card .price {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .sector-card .change {
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .sector-card .change.positive {
+        color: #10b981;
+    }
+    
+    .sector-card .change.negative {
+        color: #ef4444;
+    }
+    
+    .sector-card .view-chart-btn {
+        margin-top: 1rem;
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 0.5rem;
+        border-radius: 0.375rem;
+        font-size: 0.9rem;
+        transition: all 0.2s ease;
+    }
+    
+    .sector-card:hover .view-chart-btn {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+    
+    /* Modal styles */
+    .chart-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+    
+    .chart-modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .chart-modal-content {
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        width: 90%;
+        max-width: 1200px;
+        height: 80vh;
+        max-height: 800px;
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chart-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .chart-modal-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+    }
+    
+    .chart-modal-controls {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .control-btn {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        transition: all 0.2s ease;
+    }
+    
+    .control-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+    }
+    
+    .close-btn {
+        font-size: 1.25rem;
+    }
+    
+    .modal-chart-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    /* Loading spinner */
+    .loading-spinner {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        border-top-color: var(--accent-blue);
+        animation: spin 1s linear infinite;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        margin-top: -25px;
+        margin-left: -25px;
+    }
+    
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    
+    /* Correlation matrix */
+    .correlation-matrix {
+        margin-top: 3rem;
+    }
+    
+    .correlation-container {
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        height: 600px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        box-shadow: var(--shadow-md);
+    }
+    
+    /* Period selection */
+    .period-selection {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    
+    .period-selection select {
+        background-color: var(--bg-card);
+        color: var(--text-primary);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        padding: 0.5rem 1rem;
+        border-radius: 0.375rem;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+    
+    /* Error message */
+    .error-message {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        margin-bottom: 2rem;
+        text-align: center;
+    }
+    
+    /* No data message */
+    .no-data {
+        text-align: center;
+        padding: 3rem 2rem;
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        margin-top: 2rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="period-selection">
     <form action="{{ url_for('update_sector_period') }}" method="POST">
@@ -30,7 +245,7 @@
                 {% for sector, data in sector_returns.items() %}
                     <div class="sector-card {% if data.is_positive %}positive{% else %}negative{% endif %}" onclick="openSectorChart('{{ sector }}')">
                         <h3>{{ data.name }} ({{ data.etf }})</h3>
-                        <p class="price">{{ data.last_close }}</p>
+                        <p class="price">${{ data.last_close }}</p>
                         <p class="change {% if data.is_positive %}positive{% else %}negative{% endif %}">
                             {{ data.pct_change }}% 
                             {% if data.is_positive %}▲{% else %}▼{% endif %}
@@ -73,11 +288,27 @@
             <section class="correlation-matrix">
                 <h2>Sector Correlations</h2>
                 <div class="correlation-container" id="correlation-chart">
-                    <script>
-                        var corrData = {{ correlation_chart|safe }};
-                        Plotly.newPlot('correlation-chart', corrData.data, corrData.layout);
-                    </script>
+                    <!-- Correlation chart will be rendered here -->
                 </div>
+                
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        try {
+                            var corrData = {{ correlation_chart|safe }};
+                            if (typeof Plotly !== 'undefined') {
+                                Plotly.newPlot('correlation-chart', corrData.data, corrData.layout);
+                            } else {
+                                console.error("Plotly is not defined");
+                                document.getElementById('correlation-chart').innerHTML = 
+                                    '<div class="error-message">Chart library failed to load. Please refresh the page.</div>';
+                            }
+                        } catch (error) {
+                            console.error("Error rendering correlation chart:", error);
+                            document.getElementById('correlation-chart').innerHTML = 
+                                '<div class="error-message">Error rendering correlation matrix: ' + error.message + '</div>';
+                        }
+                    });
+                </script>
             </section>
         {% endif %}
     {% else %}
@@ -90,6 +321,7 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
 // Add sector chart modal functionality
 let isFullscreen = false;
@@ -99,45 +331,68 @@ const modalTitle = document.getElementById('chart-modal-title');
 const fullscreenBtn = document.getElementById('fullscreen-btn');
 
 function openSectorChart(sector) {
-    // Get chart data from hidden div
-    const chartDataDiv = document.getElementById(`chart-data-${sector}`);
-    if (!chartDataDiv) return;
-    
-    const sectorName = chartDataDiv.getAttribute('data-sector');
-    const chartData = JSON.parse(chartDataDiv.getAttribute('data-chart'));
-    
-    // Update modal title
-    modalTitle.textContent = `${sectorName} Sector Performance`;
-    
-    // Clear previous chart
-    modalContainer.innerHTML = '';
-    
-    // Create a new div for the chart
-    const chartDiv = document.createElement('div');
-    chartDiv.id = 'modal-plotly-chart';
-    chartDiv.style.width = '100%';
-    chartDiv.style.height = '100%';
-    modalContainer.appendChild(chartDiv);
-    
-    // Show modal
-    modal.classList.add('show');
-    document.body.classList.add('modal-open');
-    
-    // Create chart with updated layout for modal display
-    const newLayout = {
-        ...chartData.layout,
-        height: null, // Let Plotly determine the height
-        autosize: true,
-        margin: { l: 50, r: 50, t: 50, b: 50 }
-    };
-    
-    // Render chart
-    Plotly.newPlot('modal-plotly-chart', chartData.data, newLayout);
-    
-    // Make chart responsive
-    window.addEventListener('resize', function() {
-        Plotly.relayout('modal-plotly-chart', { autosize: true });
-    });
+    try {
+        // Show loading indicator
+        modalContainer.innerHTML = '<div class="loading-spinner"></div>';
+        
+        // Update modal title
+        modalTitle.textContent = `${sector} Sector Performance`;
+        
+        // Show modal
+        modal.classList.add('show');
+        document.body.classList.add('modal-open');
+        
+        // Get chart data from hidden div
+        const chartDataDiv = document.getElementById(`chart-data-${sector}`);
+        if (!chartDataDiv) {
+            console.error(`No chart data found for sector: ${sector}`);
+            modalContainer.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">Chart data not available for this sector</div>';
+            return;
+        }
+        
+        // Get chart data and ensure it's valid JSON
+        let chartData;
+        try {
+            chartData = JSON.parse(chartDataDiv.getAttribute('data-chart'));
+        } catch (parseError) {
+            console.error("Error parsing chart data:", parseError);
+            modalContainer.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">Error parsing chart data</div>';
+            return;
+        }
+        
+        // Clear previous chart and create new container
+        modalContainer.innerHTML = '';
+        const chartDiv = document.createElement('div');
+        chartDiv.id = 'modal-plotly-chart';
+        chartDiv.style.width = '100%';
+        chartDiv.style.height = '100%';
+        modalContainer.appendChild(chartDiv);
+        
+        // Check if Plotly is loaded
+        if (typeof Plotly === 'undefined') {
+            console.error("Plotly library not loaded");
+            modalContainer.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ef4444;">Chart library not loaded. Please refresh the page.</div>';
+            return;
+        }
+        
+        // Render chart with updated layout for modal display
+        Plotly.newPlot('modal-plotly-chart', chartData.data, {
+            ...chartData.layout,
+            autosize: true,
+            height: null,
+            margin: { l: 50, r: 30, t: 50, b: 50 }
+        });
+        
+        // Make chart responsive
+        window.addEventListener('resize', function() {
+            if (document.getElementById('modal-plotly-chart')) {
+                Plotly.relayout('modal-plotly-chart', { autosize: true });
+            }
+        });
+    } catch (error) {
+        console.error("Error opening sector chart:", error);
+        modalContainer.innerHTML = `<div style="text-align: center; padding: 2rem; color: #ef4444;">Error: ${error.message}</div>`;
+    }
 }
 
 function closeSectorChart() {
@@ -181,13 +436,38 @@ function updateFullscreenButton() {
     const text = fullscreenBtn.querySelector('.control-text');
     
     if (isFullscreen) {
-        icon.textContent = '⛶';
+        icon.textContent = '⏬';
         text.textContent = 'Exit Fullscreen';
     } else {
         icon.textContent = '⛶';
         text.textContent = 'Fullscreen';
     }
 }
+
+// Verify chart data on page load and log any issues
+document.addEventListener('DOMContentLoaded', function() {
+    const chartDataDivs = document.querySelectorAll('.chart-data');
+    
+    console.log(`Found ${chartDataDivs.length} chart data containers`);
+    
+    chartDataDivs.forEach(div => {
+        const sector = div.getAttribute('data-sector');
+        try {
+            const chartData = JSON.parse(div.getAttribute('data-chart'));
+            console.log(`Chart data for ${sector} loaded successfully`);
+        } catch (e) {
+            console.error(`Error parsing chart data for ${sector}:`, e);
+        }
+    });
+    
+    // Check if correlation chart container exists
+    const corrChart = document.getElementById('correlation-chart');
+    if (corrChart) {
+        console.log('Correlation chart container found');
+    } else {
+        console.log('No correlation chart container found');
+    }
+});
 
 // Close modal when clicking outside of it
 window.addEventListener('click', function(event) {

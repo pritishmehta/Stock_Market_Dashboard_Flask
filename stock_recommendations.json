@@ -1,0 +1,242 @@
+[
+    {
+        "symbol": "GOOG",
+        "company_name": "Alphabet Inc.",
+        "sector": "Communication Services",
+        "current_price": 166.25,
+        "composite_score": 0.614525,
+        "financial_strengths": [
+            "Strong return on equity (30.8%)",
+            "Low debt-to-equity ratio (0.08)",
+            "Healthy current ratio (1.84)",
+            "Above-average profit margin (28.6%)"
+        ],
+        "growth_potential": [
+            "Strong revenue growth (13.9%)",
+            "Healthy earnings growth (37.7%)",
+            "Reasonable forward P/E (18.58)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (47.2)",
+            "Positive MACD histogram"
+        ],
+        "risks": [
+            "Higher than average volatility (4.85)"
+        ]
+    },
+    {
+        "symbol": "GOOGL",
+        "company_name": "Alphabet Inc.",
+        "sector": "Communication Services",
+        "current_price": 163.99,
+        "composite_score": 0.6108250000000001,
+        "financial_strengths": [
+            "Strong return on equity (30.8%)",
+            "Low debt-to-equity ratio (0.08)",
+            "Healthy current ratio (1.84)",
+            "Above-average profit margin (28.6%)"
+        ],
+        "growth_potential": [
+            "Strong revenue growth (13.9%)",
+            "Healthy earnings growth (37.7%)",
+            "Reasonable forward P/E (18.30)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (46.3)",
+            "Positive MACD histogram"
+        ],
+        "risks": [
+            "Higher than average volatility (4.93)"
+        ]
+    },
+    {
+        "symbol": "ANET",
+        "company_name": "Arista Networks, Inc.",
+        "sector": "Technology",
+        "current_price": 83.13,
+        "composite_score": 0.6093750000000001,
+        "financial_strengths": [
+            "Strong return on equity (28.5%)",
+            "Low debt-to-equity ratio (0.00)",
+            "Healthy current ratio (4.36)",
+            "Above-average profit margin (40.7%)"
+        ],
+        "growth_potential": [
+            "Strong revenue growth (19.5%)",
+            "Healthy earnings growth (34.3%)",
+            "Reasonable forward P/E (8.54)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (44.0)",
+            "Positive MACD histogram"
+        ],
+        "risks": [
+            "Higher than average volatility (5.17)"
+        ]
+    },
+    {
+        "symbol": "MO",
+        "company_name": "Altria Group, Inc.",
+        "sector": "Consumer Defensive",
+        "current_price": 57.6,
+        "composite_score": 0.6085250000000001,
+        "financial_strengths": [
+            "Strong interest coverage (10.00X)",
+            "Above-average profit margin (55.1%)"
+        ],
+        "growth_potential": [
+            "Healthy earnings growth (43.1%)",
+            "Reasonable forward P/E (10.77)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (51.8)"
+        ],
+        "risks": [
+            "High debt levels (D/E: 100.00)"
+        ]
+    },
+    {
+        "symbol": "AIZ",
+        "company_name": "Assurant, Inc.",
+        "sector": "Financial Services",
+        "current_price": 206.84,
+        "composite_score": 0.608075,
+        "financial_strengths": [
+            "Low debt-to-equity ratio (0.41)",
+            "Healthy current ratio (2.78)",
+            "Strong interest coverage (35.52X)"
+        ],
+        "growth_potential": [
+            "Healthy earnings growth (21.0%)",
+            "Reasonable forward P/E (11.54)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (46.1)",
+            "Positive MACD histogram"
+        ],
+        "risks": [
+            "Higher than average volatility (4.07)"
+        ]
+    },
+    {
+        "symbol": "ALL",
+        "company_name": "Allstate Corporation (The)",
+        "sector": "Financial Services",
+        "current_price": 206.47,
+        "composite_score": 0.58545,
+        "financial_strengths": [
+            "Strong return on equity (21.8%)",
+            "Low debt-to-equity ratio (0.35)",
+            "Strong interest coverage (15.55X)"
+        ],
+        "growth_potential": [
+            "Strong revenue growth (12.3%)",
+            "Reasonable forward P/E (10.85)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (56.4)",
+            "Positive MACD histogram"
+        ],
+        "risks": [
+            "Higher than average volatility (6.64)"
+        ]
+    },
+    {
+        "symbol": "AMP",
+        "company_name": "Ameriprise Financial, Inc.",
+        "sector": "Financial Services",
+        "current_price": 492.64,
+        "composite_score": 0.581925,
+        "financial_strengths": [
+            "Healthy current ratio (10739.71)",
+            "Strong interest coverage (12.97X)",
+            "Above-average profit margin (19.7%)"
+        ],
+        "growth_potential": [
+            "Strong revenue growth (11.1%)",
+            "Healthy earnings growth (39.2%)",
+            "Reasonable forward P/E (12.75)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Positive MACD histogram"
+        ],
+        "risks": [
+            "Higher than average volatility (20.08)"
+        ]
+    },
+    {
+        "symbol": "ABT",
+        "company_name": "Abbott Laboratories",
+        "sector": "Healthcare",
+        "current_price": 126.34,
+        "composite_score": 0.578875,
+        "financial_strengths": [
+            "Strong return on equity (28.1%)",
+            "Low debt-to-equity ratio (0.31)",
+            "Healthy current ratio (1.67)",
+            "Strong interest coverage (12.21X)",
+            "Above-average profit margin (31.9%)"
+        ],
+        "growth_potential": [
+            "Healthy earnings growth (134.5%)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Potentially oversold (RSI: 19.6)"
+        ],
+        "risks": [
+            "Higher than average volatility (4.78)"
+        ]
+    },
+    {
+        "symbol": "APH",
+        "company_name": "Amphenol Corporation",
+        "sector": "Technology",
+        "current_price": 66.6,
+        "composite_score": 0.5777249999999999,
+        "financial_strengths": [
+            "Strong return on equity (24.8%)",
+            "Low debt-to-equity ratio (0.70)",
+            "Healthy current ratio (2.37)",
+            "Strong interest coverage (14.55X)",
+            "Above-average profit margin (15.9%)"
+        ],
+        "growth_potential": [
+            "Strong revenue growth (21.3%)",
+            "Healthy earnings growth (24.1%)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (59.7)",
+            "Positive MACD histogram"
+        ],
+        "risks": []
+    },
+    {
+        "symbol": "AEP",
+        "company_name": "American Electric Power Company",
+        "sector": "Utilities",
+        "current_price": 105.11,
+        "composite_score": 0.5727749999999999,
+        "financial_strengths": [
+            "Strong return on equity (76.0%)",
+            "Above-average profit margin (15.0%)"
+        ],
+        "growth_potential": [
+            "Healthy earnings growth (31.5%)",
+            "Reasonable forward P/E (17.85)"
+        ],
+        "technical_indicators": [
+            "Positive golden cross (50-day MA above 200-day MA)",
+            "Neutral RSI (43.1)"
+        ],
+        "risks": []
+    }
+]

@@ -45,6 +45,7 @@
             <a href="{{ url_for('market_movers') }}" {% if request.path == url_for('market_movers') %}class="active"{% endif %}>Market Movers</a>
             <a href="{{ url_for('sectors') }}" {% if request.path == url_for('sectors') %}class="active"{% endif %}>Sectors</a>
             <a href="{{ url_for('ww_eco') }}" {% if request.path == url_for('ww_eco') %}class="active"{% endif %}>Economic Indicators</a>
+            <a href="{{ url_for('predictions') }}" {% if request.path == url_for('predictions') %}class="active"{% endif %}>Predictions</a>
         </nav>
     </header>
 

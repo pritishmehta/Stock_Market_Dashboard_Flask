@@ -1,0 +1,647 @@
+{% extends "index.html" %}
+
+{% block title %}Stock Predictions & Recommendations{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/predictions.css') }}">
+<style>
+    /* Additional styles for cards and modal */
+    .stock-card {
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        padding: 1.5rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all var(--transition-normal);
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+        animation: fadeSlideUp 0.5s ease forwards;
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    
+    .stock-card:hover {
+        transform: translateY(-5px);
+        box-shadow: var(--shadow-lg);
+        border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .stock-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .stock-ticker {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    
+    .stock-name {
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+        margin-top: 0.25rem;
+    }
+    
+    .stock-price {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+    
+    .sector-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        background-color: rgba(59, 130, 246, 0.15);
+        color: var(--accent-blue);
+        border-radius: 2rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-top: 0.5rem;
+    }
+    
+    .score-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        color: white;
+        padding: 0.35rem 0.75rem;
+        border-radius: 2rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    /* Modal styles */
+    .analysis-modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7);
+        z-index: 1000;
+        backdrop-filter: blur(4px);
+    }
+    
+    .analysis-modal.show {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    .modal-content {
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        width: 90%;
+        max-width: 800px;
+        max-height: 85vh;
+        overflow-y: auto;
+        box-shadow: var(--shadow-lg);
+        animation: scaleIn 0.3s ease;
+    }
+    
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        background-color: var(--bg-card);
+        z-index: 10;
+    }
+    
+    .modal-title {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
+    
+    .modal-subtitle {
+        font-size: 1rem;
+        color: var(--text-secondary);
+        margin-top: 0.25rem;
+    }
+    
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        transition: all var(--transition-fast);
+    }
+    
+    .modal-close:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+    }
+    
+    .modal-body {
+        padding: 1.5rem;
+    }
+    
+    .analysis-section {
+        margin-bottom: 2rem;
+    }
+    
+    .analysis-section h3 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .analysis-section h3::before {
+        content: '';
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    
+    .analysis-section.strengths h3::before {
+        background-color: var(--accent-green);
+    }
+    
+    .analysis-section.growth h3::before {
+        background-color: var(--accent-blue);
+    }
+    
+    .analysis-section.technical h3::before {
+        background-color: var(--accent-purple);
+    }
+    
+    .analysis-section.risks h3::before {
+        background-color: var(--accent-red);
+    }
+    
+    .analysis-list {
+        margin: 0;
+        padding-left: 1.5rem;
+        color: var(--text-secondary);
+    }
+    
+    .analysis-list li {
+        margin-bottom: 0.5rem;
+    }
+    
+    .analysis-section.risks .analysis-list li {
+        color: #ef4444;
+    }
+    
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        justify-content: flex-end;
+    }
+    
+    .view-details-btn {
+        background-color: rgba(59, 130, 246, 0.15);
+        color: var(--text-primary);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 0.375rem;
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all var(--transition-normal);
+        text-decoration: none;
+    }
+    
+    .view-details-btn:hover {
+        background-color: rgba(59, 130, 246, 0.25);
+        transform: translateY(-2px);
+    }
+    
+    /* Loading state */
+    .prediction-loading {
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        padding: 2rem;
+        text-align: center;
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 2rem;
+    }
+    
+    .loading-spinner {
+        display: inline-block;
+        width: 50px;
+        height: 50px;
+        border: 5px solid rgba(59, 130, 246, 0.2);
+        border-radius: 50%;
+        border-top-color: var(--accent-blue);
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+    }
+    
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    
+    @keyframes scaleIn {
+        from {
+            transform: scale(0.8);
+            opacity: 0;
+        }
+        to {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    
+    /* Recommendations cards grid */
+    .recommendations-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1.5rem;
+    }
+    
+    /* Empty state styling */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        background-color: var(--bg-card);
+        border-radius: 0.75rem;
+        box-shadow: var(--shadow-md);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .empty-state svg {
+        width: 64px;
+        height: 64px;
+        color: var(--text-secondary);
+        margin-bottom: 1.5rem;
+        opacity: 0.7;
+    }
+    
+    .empty-state h3 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+    
+    .rank-badge {
+        display: inline-block;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        color: white;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 0.75rem;
+    }
+    
+    /* Top 3 ranked entries get special colors */
+    .rank-1 .rank-badge {
+        background: linear-gradient(135deg, #fcd34d, #f59e0b);
+    }
+    
+    .rank-2 .rank-badge {
+        background: linear-gradient(135deg, #e5e7eb, #9ca3af);
+    }
+    
+    .rank-3 .rank-badge {
+        background: linear-gradient(135deg, #d97706, #92400e);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="predictions-header">
+    <h2>Stock Predictions & Recommendations</h2>
+    <div class="last-run-info">
+        <p>Last updated: {{ last_updated }}</p>
+        <form action="{{ url_for('run_predictions') }}" method="POST" class="run-predictions-form">
+            <button type="submit" class="refresh-btn" {% if job_status.is_running %}disabled{% endif %}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38"/>
+                </svg>
+                {% if job_status.is_running %}Processing...{% else %}Refresh Predictions{% endif %}
+            </button>
+        </form>
+    </div>
+</section>
+
+{% if job_status.is_running %}
+<div class="prediction-loading">
+    <div class="loading-spinner"></div>
+    <h3>Generating Stock Recommendations</h3>
+    <p>This may take several minutes as the system analyzes financial data across multiple stocks...</p>
+</div>
+{% endif %}
+
+{% if error_message %}
+<div class="error-container">
+    <div class="error-title">Error Generating Predictions</div>
+    <p>{{ error_message }}</p>
+</div>
+{% endif %}
+
+<section class="market-context">
+    <h3>Market Context</h3>
+    <div class="macro-grid">
+        <div class="macro-card">
+            <div class="macro-title">GDP</div>
+            <div class="macro-value">{{ '${:,.2f}B'.format(macro_data.gdp) if macro_data.gdp else 'N/A' }}</div>
+        </div>
+        <div class="macro-card">
+            <div class="macro-title">Unemployment</div>
+            <div class="macro-value">{{ '{:.1f}%'.format(macro_data.unemployment) if macro_data.unemployment else 'N/A' }}</div>
+        </div>
+        <div class="macro-card">
+            <div class="macro-title">Inflation Expectation</div>
+            <div class="macro-value">{{ '{:.2f}%'.format(macro_data.inflation) if macro_data.inflation else 'N/A' }}</div>
+        </div>
+        <div class="macro-card">
+            <div class="macro-title">Real Interest Rate</div>
+            <div class="macro-value">{{ '{:.2f}%'.format(macro_data.interest) if macro_data.interest else 'N/A' }}</div>
+        </div>
+    </div>
+</section>
+
+{% if recommendations and recommendations|length > 0 %}
+    <section class="recommendations-container">
+        <h3>Top Stock Recommendations</h3>
+        <div class="recommendations-grid">
+            {% for stock in recommendations %}
+                <div class="stock-card rank-{{ loop.index }}" onclick="showAnalysisModal('{{ stock.symbol }}')">
+                    <div class="rank-badge">{{ loop.index }}</div>
+                    <div class="stock-card-header">
+                        <div>
+                            <div class="stock-ticker">{{ stock.symbol }}</div>
+                            <div class="stock-name">{{ stock.company_name }}</div>
+                            <div class="sector-badge">{{ stock.sector }}</div>
+                        </div>
+                        <div class="stock-price">${{ "%.2f"|format(stock.current_price) }}</div>
+                    </div>
+                    <div class="score-badge">Score: {{ "%.0f"|format(stock.composite_score * 100) }}</div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+    
+    <!-- Analysis Modal -->
+    <div id="analysis-modal" class="analysis-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title" id="modal-stock-symbol">Stock Analysis</h2>
+                    <div class="modal-subtitle" id="modal-stock-name">Company Name</div>
+                </div>
+                <button class="modal-close" onclick="closeAnalysisModal()">×</button>
+            </div>
+            <div class="modal-body" id="modal-analysis-content">
+                <!-- Content will be filled dynamically -->
+            </div>
+            <div class="modal-footer">
+                <a href="#" id="modal-details-link" class="view-details-btn">View Stock Details</a>
+            </div>
+        </div>
+    </div>
+    
+    <section class="prediction-methodology">
+        <h3>Prediction Methodology</h3>
+        <div class="methodology-content">
+            <p>Our stock recommendations are generated using a comprehensive analysis that considers:</p>
+            <div class="methodology-grid">
+                <div class="methodology-card">
+                    <h4>Financial Health (25%)</h4>
+                    <p>Evaluates balance sheet strength, profitability metrics, and cash flow stability using metrics like ROE, debt-to-equity ratio, and interest coverage.</p>
+                </div>
+                <div class="methodology-card">
+                    <h4>Growth Potential (25%)</h4>
+                    <p>Assesses revenue growth, earnings growth, and future growth prospects using metrics like EPS growth, revenue growth, and PEG ratio.</p>
+                </div>
+                <div class="methodology-card">
+                    <h4>Valuation (20%)</h4>
+                    <p>Considers stock price relative to fundamentals using metrics like forward P/E ratio, PEG ratio, and free cash flow yield.</p>
+                </div>
+                <div class="methodology-card">
+                    <h4>Technical Indicators (15%)</h4>
+                    <p>Analyzes price movements, trends, and momentum signals using indicators like RSI, MACD, and moving averages.</p>
+                </div>
+                <div class="methodology-card">
+                    <h4>Market Sentiment (15%)</h4>
+                    <p>Considers market perception and news sentiment using metrics like news sentiment scores and article volume.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <section class="disclaimer">
+        <h4>Disclaimer</h4>
+        <p>These recommendations are generated using quantitative analysis and should not be considered as financial advice. Always conduct your own research and consider consulting with a financial advisor before making investment decisions.</p>
+    </section>
+{% else %}
+    <section class="no-predictions">
+        <div class="empty-state">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M15.5 2H8.6c-.4 0-.8.2-1.1.5-.3.3-.5.7-.5 1.1v16.8c0 .4.2.8.5 1.1.3.3.7.5 1.1.5h12.8c.4 0 .8-.2 1.1-.5.3-.3.5-.7.5-1.1V7.5L15.5 2z"/>
+                <path d="M15 2v5.5H21"/>
+                <path d="M12 12.5v.01"/>
+                <path d="M8 12.5v.01"/>
+                <path d="M16 12.5v.01"/>
+                <path d="M8 16.5v.01"/>
+                <path d="M12 16.5v.01"/>
+                <path d="M16 16.5v.01"/>
+            </svg>
+            <h3>No Recommendations Available</h3>
+            <p>Stock recommendations have not been generated yet. Click the button below to generate new recommendations.</p>
+            <form action="{{ url_for('run_predictions') }}" method="POST" class="run-predictions-form-center">
+                <button type="submit" class="generate-btn" {% if job_status.is_running %}disabled{% endif %}>
+                    {% if job_status.is_running %}Processing...{% else %}Generate Recommendations{% endif %}
+                </button>
+            </form>
+            <p class="processing-note">Note: Generation may take several minutes as it analyzes multiple data points across many stocks.</p>
+        </div>
+    </section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Store recommendations data in JavaScript
+        const recommendationsData = [
+            {% for stock in recommendations %}
+                {
+                    symbol: "{{ stock.symbol }}",
+                    company_name: "{{ stock.company_name }}",
+                    sector: "{{ stock.sector }}",
+                    current_price: {{ stock.current_price }},
+                    composite_score: {{ stock.composite_score }},
+                    financial_strengths: {{ stock.financial_strengths|tojson }},
+                    growth_potential: {{ stock.growth_potential|tojson }},
+                    technical_indicators: {{ stock.technical_indicators|tojson }},
+                    risks: {{ stock.risks|tojson }}
+                }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Store data in window object for access in other functions
+        window.recommendationsData = recommendationsData;
+        
+        // Add animation delay to cards for staggered entrance
+        const cards = document.querySelectorAll('.stock-card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = (index * 0.1) + 's';
+        });
+        
+        // Check prediction status periodically if job is running
+        {% if job_status.is_running %}
+            checkPredictionStatus();
+        {% endif %}
+    });
+    
+    // Function to check prediction status
+    function checkPredictionStatus() {
+        fetch('/prediction_status')
+            .then(response => response.json())
+            .then(data => {
+                if (data.is_running) {
+                    // Update UI elements if needed
+                    setTimeout(checkPredictionStatus, 5000); // Check again in 5 seconds
+                } else {
+                    // Prediction completed, refresh the page
+                    window.location.reload();
+                }
+            })
+            .catch(error => {
+                console.error('Error checking prediction status:', error);
+                setTimeout(checkPredictionStatus, 10000); // Try again in 10 seconds if there was an error
+            });
+    }
+    
+    // Function to show analysis modal
+    function showAnalysisModal(symbol) {
+        // Find the stock data
+        const stock = window.recommendationsData.find(item => item.symbol === symbol);
+        if (!stock) return;
+        
+        // Update modal content
+        document.getElementById('modal-stock-symbol').textContent = stock.symbol;
+        document.getElementById('modal-stock-name').textContent = stock.company_name;
+        document.getElementById('modal-details-link').href = `/search?q=${stock.symbol}`;
+        
+        // Generate sections content
+        let modalContent = '';
+        
+        // Price and score section
+        modalContent += `
+            <div class="analysis-summary">
+                <div class="summary-row">
+                    <div><strong>Current Price:</strong> $${stock.current_price.toFixed(2)}</div>
+                    <div><strong>Sector:</strong> ${stock.sector}</div>
+                </div>
+                <div class="summary-row">
+                    <div><strong>Score:</strong> ${(stock.composite_score * 100).toFixed(0)}/100</div>
+                </div>
+            </div>
+        `;
+        
+        // Financial strengths section
+        if (stock.financial_strengths && stock.financial_strengths.length > 0) {
+            modalContent += `
+                <div class="analysis-section strengths">
+                    <h3>Financial Strengths</h3>
+                    <ul class="analysis-list">
+                        ${stock.financial_strengths.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Growth potential section
+        if (stock.growth_potential && stock.growth_potential.length > 0) {
+            modalContent += `
+                <div class="analysis-section growth">
+                    <h3>Growth Potential</h3>
+                    <ul class="analysis-list">
+                        ${stock.growth_potential.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Technical indicators section
+        if (stock.technical_indicators && stock.technical_indicators.length > 0) {
+            modalContent += `
+                <div class="analysis-section technical">
+                    <h3>Technical Indicators</h3>
+                    <ul class="analysis-list">
+                        ${stock.technical_indicators.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Risk factors section
+        if (stock.risks && stock.risks.length > 0) {
+            modalContent += `
+                <div class="analysis-section risks">
+                    <h3>Risk Factors</h3>
+                    <ul class="analysis-list">
+                        ${stock.risks.map(item => `<li>${item}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Update modal content
+        document.getElementById('modal-analysis-content').innerHTML = modalContent;
+        
+        // Show modal
+        document.getElementById('analysis-modal').classList.add('show');
+        document.body.style.overflow = 'hidden'; // Prevent scrolling while modal is open
+    }
+    
+    // Function to close analysis modal
+    function closeAnalysisModal() {
+        document.getElementById('analysis-modal').classList.remove('show');
+        document.body.style.overflow = ''; // Restore scrolling
+    }
+    
+    // Close modal when clicking outside content
+    document.addEventListener('click', function(event) {
+        const modal = document.getElementById('analysis-modal');
+        const modalContent = document.querySelector('.modal-content');
+        
+        if (modal.classList.contains('show') && !modalContent.contains(event.target) && event.target === modal) {
+            closeAnalysisModal();
+        }
+    });
+    
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && document.getElementById('analysis-modal').classList.contains('show')) {
+            closeAnalysisModal();
+        }
+    });
+</script>
+{% endblock %}
