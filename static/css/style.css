@@ -963,3 +963,98 @@ header h1 {
     height: 3px;
   }
 }
+.market-indices {
+  margin-bottom: 2rem;
+}
+
+.indices-group {
+  background-color: var(--bg-card);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.indices-group-title {
+  display: flex;
+  align-items: center;
+  margin-top: 0;
+  margin-bottom: 1.25rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.75rem;
+}
+
+.flag-icon {
+  margin-right: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.indices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+}
+
+.index-card {
+  background-color: rgba(255, 255, 255, 0.03);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.index-card:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.index-name {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.index-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.index-change {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.index-change.positive {
+  color: var(--accent-green);
+}
+
+.index-change.negative {
+  color: var(--accent-red);
+}
+
+.index-card.placeholder {
+  opacity: 0.6;
+  background-color: rgba(255, 255, 255, 0.01);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .indices-grid {
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .indices-grid {
+      grid-template-columns: 1fr 1fr;
+  }
+  
+  .index-price {
+      font-size: 1.25rem;
+  }
+}

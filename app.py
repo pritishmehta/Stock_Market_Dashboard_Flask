@@ -49,6 +49,217 @@ prediction_job = {
     'progress': 0,
     'error': None
 }
+def get_prediction_for_stock(ticker):
+    """
+    Get or generate prediction for a specific stock ticker.
+    
+    Parameters:
+    ticker (str): Stock ticker symbol
+    
+    Returns:
+    dict: Prediction data for the stock, or None if not available
+    """
+    try:
+        # First, check if we already have predictions in the cache file
+        if os.path.exists('stock_recommendations.json'):
+            with open('stock_recommendations.json', 'r') as f:
+                recommendations = json.load(f)
+                
+                # Look for the ticker in existing recommendations
+                for recommendation in recommendations:
+                    if recommendation.get('symbol') == ticker:
+                        print(f"Found existing prediction for {ticker}")
+                        return recommendation
+        
+        # If no existing prediction found, generate a quick one for this specific stock
+        print(f"Generating quick prediction for {ticker}")
+        prediction = generate_quick_prediction(ticker)
+        return prediction
+    
+    except Exception as e:
+        print(f"Error getting prediction for {ticker}: {e}")
+        return None
+
+def generate_quick_prediction(ticker):
+    """
+    Generate a simplified prediction for a specific stock.
+    This is a lightweight version of the full prediction algorithm
+    to avoid performance issues during search.
+    
+    Parameters:
+    ticker (str): Stock ticker symbol
+    
+    Returns:
+    dict: Prediction data for the stock
+    """
+    try:
+        # Get stock info for company name and current price
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        
+        # Initialize default prediction
+        prediction = {
+            'symbol': ticker,
+            'company_name': info.get('longName', info.get('shortName', ticker)),
+            'sector': info.get('sector', 'Unknown'),
+            'current_price': info.get('currentPrice', info.get('regularMarketPrice', 0)),
+            'composite_score': 0,  # Default score
+            'financial_strengths': [],
+            'growth_potential': [],
+            'technical_indicators': [],
+            'risks': []
+        }
+        
+        # Basic financial metrics
+        # Get key financial ratios
+        try:
+            financials = stock.financials
+            balance_sheet = stock.balance_sheet
+            
+            # Calculate some basic metrics
+            # ROE
+            if not financials.empty and not balance_sheet.empty:
+                net_income = financials.loc['Net Income'].iloc[0] if 'Net Income' in financials.index else None
+                total_equity = balance_sheet.loc['Total Stockholder Equity'].iloc[0] if 'Total Stockholder Equity' in balance_sheet.index else None
+                
+                if net_income is not None and total_equity is not None and total_equity != 0:
+                    roe = (net_income / total_equity) * 100
+                    prediction['roe'] = roe
+                    if roe > 15:
+                        prediction['financial_strengths'].append(f"Strong return on equity ({roe:.1f}%)")
+            
+            # Debt to Equity
+            total_debt = balance_sheet.loc['Total Debt'].iloc[0] if 'Total Debt' in balance_sheet.index else None
+            if total_debt is not None and total_equity is not None and total_equity != 0:
+                debt_to_equity = total_debt / total_equity
+                prediction['debt_to_equity'] = debt_to_equity
+                if debt_to_equity < 1:
+                    prediction['financial_strengths'].append(f"Low debt-to-equity ratio ({debt_to_equity:.2f})")
+                elif debt_to_equity > 2:
+                    prediction['risks'].append(f"High debt-to-equity ratio ({debt_to_equity:.2f})")
+            
+            # PE Ratio
+            pe_ratio = info.get('trailingPE', info.get('forwardPE'))
+            if pe_ratio is not None:
+                prediction['pe_ratio'] = pe_ratio
+                if pe_ratio < 15:
+                    prediction['financial_strengths'].append(f"Attractive P/E ratio ({pe_ratio:.2f})")
+                elif pe_ratio > 30:
+                    prediction['risks'].append(f"High P/E ratio ({pe_ratio:.2f})")
+        
+        except Exception as e:
+            print(f"Error calculating financial metrics for {ticker}: {e}")
+        
+        # Technical indicators
+        try:
+            # Get historical data
+            hist = stock.history(period="1y")
+            if not hist.empty and len(hist) > 50:
+                # Calculate moving averages
+                hist['MA50'] = hist['Close'].rolling(window=50).mean()
+                hist['MA200'] = hist['Close'].rolling(window=200).mean()
+                
+                # Check if price is above moving averages
+                latest_close = hist['Close'].iloc[-1]
+                latest_ma50 = hist['MA50'].iloc[-1]
+                latest_ma200 = hist['MA200'].iloc[-1]
+                
+                if latest_close > latest_ma50:
+                    prediction['technical_indicators'].append("Price above 50-day moving average (bullish)")
+                else:
+                    prediction['technical_indicators'].append("Price below 50-day moving average (cautious)")
+                    
+                if latest_close > latest_ma200:
+                    prediction['technical_indicators'].append("Price above 200-day moving average (bullish long-term)")
+                else:
+                    prediction['technical_indicators'].append("Price below 200-day moving average (bearish long-term)")
+                
+                # Simple momentum
+                month_ago_close = hist['Close'].iloc[-22] if len(hist) > 22 else hist['Close'].iloc[0]
+                momentum = ((latest_close - month_ago_close) / month_ago_close) * 100
+                
+                if momentum > 5:
+                    prediction['technical_indicators'].append(f"Strong positive momentum ({momentum:.1f}% monthly return)")
+                elif momentum < -5:
+                    prediction['technical_indicators'].append(f"Negative momentum ({momentum:.1f}% monthly return)")
+        
+        except Exception as e:
+            print(f"Error calculating technical indicators for {ticker}: {e}")
+        
+        # Growth metrics
+        try:
+            # Revenue growth
+            if not financials.empty and 'Total Revenue' in financials.index and len(financials.columns) >= 2:
+                latest_revenue = financials.loc['Total Revenue'].iloc[0]
+                prev_revenue = financials.loc['Total Revenue'].iloc[1]
+                
+                if latest_revenue > 0 and prev_revenue > 0:
+                    revenue_growth = ((latest_revenue - prev_revenue) / prev_revenue) * 100
+                    prediction['revenue_growth'] = revenue_growth
+                    
+                    if revenue_growth > 10:
+                        prediction['growth_potential'].append(f"Strong revenue growth ({revenue_growth:.1f}%)")
+                    elif revenue_growth < 0:
+                        prediction['risks'].append(f"Declining revenue ({revenue_growth:.1f}%)")
+            
+            # Future growth estimates
+            growth_estimate = info.get('earningsGrowth', info.get('revenueGrowth'))
+            if growth_estimate is not None:
+                growth_pct = growth_estimate * 100
+                if growth_pct > 10:
+                    prediction['growth_potential'].append(f"Projected growth rate of {growth_pct:.1f}%")
+        
+        except Exception as e:
+            print(f"Error calculating growth metrics for {ticker}: {e}")
+        
+        # Calculate a composite score based on collected metrics
+        score = 50  # Start at neutral
+        
+        # Add points for financial strengths
+        score += len(prediction['financial_strengths']) * 5
+        
+        # Add points for growth potential
+        score += len(prediction['growth_potential']) * 7
+        
+        # Add points for technical indicators
+        bullish_indicators = sum(1 for indicator in prediction['technical_indicators'] if 'bullish' in indicator.lower())
+        score += bullish_indicators * 4
+        
+        # Subtract points for risks
+        score -= len(prediction['risks']) * 8
+        
+        # Normalize score to 0-100 range
+        score = max(0, min(100, score))
+        prediction['composite_score'] = score
+        
+        # Classify the stock based on the score
+        if score >= 80:
+            prediction['rating'] = "Strong Buy"
+        elif score >= 65:
+            prediction['rating'] = "Buy"
+        elif score >= 45:
+            prediction['rating'] = "Hold"
+        elif score >= 30:
+            prediction['rating'] = "Sell"
+        else:
+            prediction['rating'] = "Strong Sell"
+        
+        return prediction
+    
+    except Exception as e:
+        print(f"Error generating prediction for {ticker}: {e}")
+        return {
+            'symbol': ticker,
+            'company_name': ticker,
+            'sector': 'Unknown',
+            'current_price': 0,
+            'composite_score': 50,
+            'rating': 'Hold',
+            'financial_strengths': [],
+            'growth_potential': [],
+            'technical_indicators': [],
+            'risks': ['Insufficient data for complete analysis']
+        }
 
 # Utility Functions
 def format_large_number(num):
@@ -1073,13 +1284,14 @@ def home():
 def search():
     """
     Route to handle stock search and display comprehensive stock information
-    with improved error handling and chart rendering
+    with predictions and proper error handling.
     """
     # Initialize with default values to prevent UnboundLocalError
     search_performed = False
     stock_info = {}
     stock_news = []
     chart_data = {'dates': [], 'prices': []}
+    prediction_data = None
     error = None
     query = ""
     
@@ -1088,29 +1300,28 @@ def search():
     
     # If no query was provided, render the initial search page
     if not query:
+        print("No search query provided")
         return render_template('search.html', 
                               search_performed=False,
                               stock={},
                               news=[],
-                              chart_data=chart_data)
+                              chart_data=chart_data,
+                              prediction=None)
     
     # Mark that a search was performed
     search_performed = True
     
     # Clean up query - remove spaces, convert to uppercase
     ticker = query.strip().upper()
+    print(f"Processing search for ticker: {ticker}")
     
-    # Use ThreadPoolExecutor to fetch data concurrently
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-        # Submit tasks for stock info and news
-        stock_info_future = executor.submit(get_stock_info, ticker)
-        stock_news_future = executor.submit(get_stock_news_for_ticker, ticker)
-        
-        # Get stock info first - if this fails, we can't proceed
-        stock_info = stock_info_future.result()
+    # Step 1: Get basic stock information
+    try:
+        stock_info = get_stock_info(ticker)
         
         # Check if there was an error in stock_info
         if 'error' in stock_info and stock_info['error'] is not None:
+            print(f"Error in stock data: {stock_info['error']}")
             error = stock_info['error']
             return render_template('search.html', 
                                   search_performed=True,
@@ -1118,90 +1329,123 @@ def search():
                                   query=query,
                                   stock={},
                                   news=[],
-                                  chart_data=chart_data)
-        
-        # Get news data
-        try:
-            stock_news = stock_news_future.result()
-        except Exception as e:
-            print(f"Error retrieving news for {ticker}: {e}")
-            stock_news = []
+                                  chart_data=chart_data,
+                                  prediction=None)
+    except Exception as e:
+        print(f"Exception in get_stock_info for {ticker}: {str(e)}")
+        error = f"Error processing stock data: {str(e)}"
+        return render_template('search.html', 
+                              search_performed=True,
+                              error=error,
+                              query=query,
+                              stock={},
+                              news=[],
+                              chart_data=chart_data,
+                              prediction=None)
     
-    # Get historical data for chart separately to avoid memory issues
+    # Step 2: Get stock prediction data
+    try:
+        print(f"Getting prediction data for {ticker}")
+        prediction_data = get_prediction_for_stock(ticker)
+        if prediction_data:
+            print(f"Prediction for {ticker}: Score={prediction_data.get('composite_score', 'N/A')}, Rating={prediction_data.get('rating', 'N/A')}")
+        else:
+            print(f"No prediction data available for {ticker}")
+    except Exception as e:
+        print(f"Error getting prediction for {ticker}: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't fail the whole request if prediction fails
+        prediction_data = None
+    
+    # Step 3: Get news for this stock with improved error handling
+    try:
+        stock_news = get_stock_news_for_ticker(ticker)
+        print(f"Retrieved {len(stock_news)} news items for {ticker}")
+        
+        # Debug the first news item to verify structure
+        if stock_news and len(stock_news) > 0:
+            print(f"First news item title: {stock_news[0]['title']}")
+            print(f"News item keys: {stock_news[0].keys()}")
+        else:
+            print("No news items were returned")
+            # Ensure we at least have an empty list
+            stock_news = []
+    except Exception as e:
+        print(f"Error retrieving news for {ticker}: {e}")
+        import traceback
+        traceback.print_exc()
+        # Don't fail the whole request, just set an empty news list
+        stock_news = []
+    
+    # Step 4: Get historical data for chart with robust error handling
     try:
         today = datetime.date.today()
         start_date = today - datetime.timedelta(days=365)  # Default to 1 year
         
-        # Use cache if available
-        cache_key = f"search_chart_{ticker}"
-        current_time = time.time()
+        print(f"Fetching historical data for {ticker} from {start_date} to {today}")
+        historical_data = yf.download(ticker, start=start_date, end=today)
         
-        if cache_key in CACHE and (current_time - CACHE[cache_key]['timestamp'] < CHART_CACHE_TIMEOUT):
-            chart_data = CACHE[cache_key]['data']
-        else:
-            # Fetch data
-            print(f"Fetching historical data for {ticker} from {start_date} to {today}")
-            historical_data = yf.download(ticker, start=start_date, end=today, progress=False)
+        if not historical_data.empty and len(historical_data) > 1:
+            historical_data.reset_index(inplace=True)
             
-            if not historical_data.empty and len(historical_data) > 1:
-                # Reset index to make Date a column
-                historical_data.reset_index(inplace=True)
+            # Process dates and ensure they're strings
+            dates = historical_data['Date'].dt.strftime('%Y-%m-%d').tolist()
+            
+            # Process prices with careful error handling
+            prices = []
+            valid_indices = []
+            
+            for i, price in enumerate(historical_data['Close'].values):
+                if pd.isna(price):
+                    continue  # Skip NaN values
                 
-                # Process dates and ensure they're strings
-                dates = historical_data['Date'].dt.strftime('%Y-%m-%d').tolist()
-                
-                # Process prices with careful error handling
-                prices = []
-                valid_indices = []
-                
-                for i, price in enumerate(historical_data['Close'].values):
-                    if pd.isna(price):
-                        continue  # Skip NaN values
-                    
-                    try:
-                        # Convert to float and track valid index
-                        price_float = float(price)
-                        prices.append(price_float)
-                        valid_indices.append(i)
-                    except (TypeError, ValueError):
-                        continue  # Skip invalid values
-                
-                # Get only dates that correspond to valid prices
-                valid_dates = [dates[i] for i in valid_indices]
-                
-                # If we have valid data after filtering
-                if valid_dates and prices and len(valid_dates) == len(prices):
-                    chart_data = {
-                        'dates': valid_dates,
-                        'prices': prices
-                    }
-                    
-                    # Cache the result
-                    CACHE[cache_key] = {
-                        'data': chart_data,
-                        'timestamp': current_time
-                    }
+                try:
+                    # Convert to float and track valid index
+                    price_float = float(price)
+                    prices.append(price_float)
+                    valid_indices.append(i)
+                except (TypeError, ValueError) as e:
+                    print(f"Warning: Could not convert price value to float: {price}")
+                    continue  # Skip invalid values
+            
+            # Get only dates that correspond to valid prices
+            valid_dates = [dates[i] for i in valid_indices]
+            
+            # If we have valid data after filtering
+            if valid_dates and prices and len(valid_dates) == len(prices):
+                chart_data = {
+                    'dates': valid_dates,
+                    'prices': prices
+                }
+                print(f"Processed {len(prices)} valid price points out of {len(historical_data)} records")
             else:
-                print(f"No historical data available for {ticker} or insufficient data points")
+                print(f"Data validation failed. Dates: {len(valid_dates)}, Prices: {len(prices)}")
+                # Keep the empty structure defined at the beginning
+        else:
+            print(f"No historical data available for {ticker} or insufficient data points")
     except Exception as e:
         print(f"Error fetching historical data for {ticker}: {e}")
         import traceback
         traceback.print_exc()
+        # chart_data remains as empty structure defined at the beginning
     
     # Final validation of chart_data structure
     if not isinstance(chart_data, dict) or 'dates' not in chart_data or 'prices' not in chart_data:
         print("Warning: chart_data structure is invalid, resetting to empty structure")
         chart_data = {'dates': [], 'prices': []}
     
-    # Log chart data stats
-    print(f"Chart data contains {len(chart_data.get('dates', []))} data points")
+    # Log final chart data stats
+    print(f"Final chart data contains {len(chart_data['dates'])} data points")
     
-    # Render template with all data
+    # Render template with all data including prediction
+    print(f"Rendering template with {len(stock_news)} news items, {len(chart_data['dates'])} chart points, and prediction data")
     return render_template('search.html', 
                           search_performed=True,
                           stock=stock_info,
                           news=stock_news,
                           chart_data=chart_data,
+                          prediction=prediction_data,
                           query=query)
 
 @app.route('/candlestick/<symbol>')

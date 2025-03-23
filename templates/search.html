@@ -334,6 +334,151 @@
             grid-template-columns: 1fr;
         }
     }
+    /* Add these styles to the head_extra block in search.html */
+
+/* Prediction section styles */
+.prediction-section {
+    background-color: var(--bg-card);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    margin-bottom: 2rem;
+}
+
+.prediction-score-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 1.5rem;
+}
+
+.prediction-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+}
+
+.score-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    font-size: 1.75rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 2px solid transparent;
+}
+
+.score-circle.excellent {
+    background-color: rgba(16, 185, 129, 0.2);
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.score-circle.good {
+    background-color: rgba(59, 130, 246, 0.2);
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.score-circle.neutral {
+    background-color: rgba(249, 250, 251, 0.2);
+    border-color: #f9fafb;
+    color: #f9fafb;
+}
+
+.score-circle.poor {
+    background-color: rgba(251, 146, 60, 0.2);
+    border-color: #fb923c;
+    color: #fb923c;
+}
+
+.score-circle.bad {
+    background-color: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+.score-label {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.prediction-summary {
+    flex: 1;
+    line-height: 1.6;
+}
+
+.prediction-category {
+    margin-bottom: 1.5rem;
+}
+
+.prediction-category h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.prediction-list {
+    list-style-type: none;
+    padding-left: 0;
+    margin: 0;
+}
+
+.prediction-list li {
+    position: relative;
+    padding-left: 1.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.prediction-list li:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.5rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+}
+
+.prediction-list.strengths li:before {
+    background-color: #10b981; /* Green */
+}
+
+.prediction-list.growth li:before {
+    background-color: #3b82f6; /* Blue */
+}
+
+.prediction-list.technical li:before {
+    background-color: #8b5cf6; /* Purple */
+}
+
+.prediction-list.risks li:before {
+    background-color: #ef4444; /* Red */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .prediction-score-container {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .prediction-score {
+        flex-direction: row;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+}
 </style>
 {% endblock %}
 
@@ -453,6 +598,68 @@
                 </div>
                 
                 <div class="right-column">
+                    {% if prediction %}
+                    <div class="prediction-section">
+                        <h2>Stock Analysis</h2>
+                        
+                        <div class="prediction-score-container">
+                            <div class="prediction-score">
+                                <div class="score-circle {% if prediction.composite_score >= 80 %}excellent{% elif prediction.composite_score >= 65 %}good{% elif prediction.composite_score >= 45 %}neutral{% elif prediction.composite_score >= 30 %}poor{% else %}bad{% endif %}">
+                                    <span class="score-number">{{ prediction.composite_score|round|int }}</span>
+                                </div>
+                                <div class="score-label">{{ prediction.rating }}</div>
+                            </div>
+                            
+                            <div class="prediction-summary">
+                                <p>Our analysis of <strong>{{ prediction.company_name }}</strong> ({{ prediction.symbol }}) indicates a composite score of <strong>{{ prediction.composite_score|round|int }}/100</strong>, suggesting a <strong>{{ prediction.rating }}</strong> recommendation.</p>
+                            </div>
+                        </div>
+                        
+                        {% if prediction.financial_strengths %}
+                        <div class="prediction-category">
+                            <h3>Financial Strengths</h3>
+                            <ul class="prediction-list strengths">
+                                {% for strength in prediction.financial_strengths %}
+                                <li>{{ strength }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if prediction.growth_potential %}
+                        <div class="prediction-category">
+                            <h3>Growth Potential</h3>
+                            <ul class="prediction-list growth">
+                                {% for potential in prediction.growth_potential %}
+                                <li>{{ potential }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if prediction.technical_indicators %}
+                        <div class="prediction-category">
+                            <h3>Technical Indicators</h3>
+                            <ul class="prediction-list technical">
+                                {% for indicator in prediction.technical_indicators %}
+                                <li>{{ indicator }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if prediction.risks %}
+                        <div class="prediction-category">
+                            <h3>Risk Factors</h3>
+                            <ul class="prediction-list risks">
+                                {% for risk in prediction.risks %}
+                                <li>{{ risk }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                     <div class="detail-section">
                         <h2>Stock Details</h2>
                         <div class="detail-grid">
