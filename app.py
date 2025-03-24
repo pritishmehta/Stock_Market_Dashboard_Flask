@@ -2051,7 +2051,7 @@ if __name__ == '__main__':
     cleanup_thread.start()
     
     # Run the app
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
 else:
     # In production, still start the cleanup thread
     import random
